@@ -1,0 +1,60 @@
+name: Actualizar y publicar atlas sísmico
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # 10 minutos, evitando el minuto 0 de mayor congestión
+    - cron: '3,13,23,33,43,53 * * * *'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: atlas-panama-pages
+  cancel-in-progress: false
+
+jobs:
+  actualizar-y-publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Consultar tabla del Instituto de Geociencias
+        run: |
+          # Conservar el JSON anterior si la página oficial no responde.
+          python scripts/actualizar_sismos.py || echo '::warning::Origen IGC-UP no disponible; se conserva la última copia.'
+      - name: Guardar la última descarga en el repositorio
+        run: |
+          if ! git diff --quiet -- sismos.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add sismos.json
+            git commit -m "Actualizar catálogo sísmico oficial"
+            git push origin HEAD:main
+          fi
+      - name: Preparar página estática
+        run: |
+          mkdir -p web
+          cp index.html sismos.json web/
+          touch web/.nojekyll
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Preparar artefacto web
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+      - name: Publicar en GitHub Pages
+        id: publicar
+        uses: actions/deploy-pages@v4
