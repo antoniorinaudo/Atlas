@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Cloudflare collects the official source independently every ten minutes.
+# Cloudflare collects the source independently with persistent Durable Object alarms.
 # GitHub Actions only publishes changes to the static application.
 permissions:
   contents: read
