@@ -1,1 +1,13 @@
-{"checked_at_utc":null,"status":"pending","fetched_at_utc":null,"event_count":null,"run_id":null,"event":"unknown","logs":["El registro de descarga estará disponible tras el próximo despliegue."]}
+{
+  "checked_at_utc": "2026-10-10T02:54:18+00:00",
+  "status": "success",
+  "source_url": "https://sismosgeociencias.up.ac.pa/",
+  "fetched_at_utc": "2026-10-10T02:54:18+00:00",
+  "event_count": 101,
+  "run_id": "38018642547",
+  "event": "push",
+  "logs": [
+    "GET oficial: intento 1/3, HTTP 200, 4.0s, 101 sismos",
+    "Guardados 101 sismos en /home/runner/work/Atlas/Atlas/sismos.json; 2026-10-10T02:54:18+00:00"
+  ]
+}
