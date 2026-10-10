@@ -112,17 +112,35 @@
   if(additions.some(event=>event.mag>=minimum)&&playTone())soundStatus.textContent='Sonó un aviso de nuevo registro del IGC–UP.';
  }};
  navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='atlas-open-event'){eventToOpen=event.data.event;window.atlasPush.handleDeepLink();if(eventToOpen)refreshAutomatically().then(()=>window.atlasPush.handleDeepLink());}});
- window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;});
- window.addEventListener('appinstalled',()=>{get('installApp').hidden=true;});
- get('installApp').hidden=!!standalone;
- get('installApp').onclick=async()=>{
-  if(installPrompt){await installPrompt.prompt();installPrompt=null;return;}
-  get('installHelp').textContent=ios?'En Safari, pulsa Compartir y «Añadir a pantalla de inicio». Después abre Atlas Sísmico Panamá desde su icono.':'Abre el menú del navegador y elige «Instalar app» o «Añadir a pantalla de inicio». Si no aparece, vuelve a abrir la página con conexión.';
-  get('installDialog').showModal();
+ const installButton=get('installApp'),installDialog=get('installDialog'),displayMode=matchMedia('(display-mode: standalone)');
+ let installed=!!standalone,installBusy=false;
+ function installationControls(){
+  installButton.hidden=installed||displayMode.matches||!!navigator.standalone;
+  installButton.disabled=installBusy;
+  installButton.textContent=installBusy?'Abriendo…':installPrompt?'Instalar app':'Cómo instalar';
+  installButton.title=installPrompt?'Abrir la instalación del navegador':'Ver instrucciones para instalar desde el navegador';
+ }
+ function installationHelp(message=''){
+  const instructions=ios?'Pulsa Compartir y «Añadir a pantalla de inicio». Confirma y después abre Atlas Sísmico Panamá desde su icono.':'La instalación se realiza desde el navegador. Abre su menú, busca «Instalar app» o «Añadir a pantalla de inicio» y confirma allí. Si esa opción no aparece, puedes seguir usando el Atlas en esta página.';
+  get('installHelp').textContent=(message?message+' ':'')+instructions;
+  if(!installDialog.open)installDialog.showModal();
+ }
+ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;installationControls();});
+ window.addEventListener('appinstalled',()=>{installed=true;installPrompt=null;installBusy=false;installDialog.close();installationControls();});
+ displayMode.addEventListener('change',installationControls);
+ installButton.onclick=async()=>{
+  if(installBusy)return;
+  if(!installPrompt){installationHelp();return;}
+  const prompt=installPrompt;installPrompt=null;installBusy=true;installationControls();
+  try{await prompt.prompt();}
+  catch{installationHelp('No se pudo abrir la instalación automática.');}
+  finally{installBusy=false;installationControls();}
  };
- get('installClose').onclick=()=>get('installDialog').close();
+ get('installClose').onclick=()=>installDialog.close();
+ installDialog.addEventListener('close',()=>{if(!installButton.hidden)installButton.focus({preventScroll:true});});
+ installationControls();
  if('serviceWorker'in navigator&&isSecureContext){
-  navigator.serviceWorker.register('./sw.js?v=20261010-mobile-beacon11',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
+  navigator.serviceWorker.register('./sw.js?v=20261010-install-state12',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
    registration=reg;if(supported)subscription=await reg.pushManager.getSubscription();
    if(record?.pendingDelete){try{await api('unsubscribe',{id:record.id,token:record.token});record={minMagnitude:record.minMagnitude};save();}catch{}}
    availability();window.atlasPush.handleDeepLink();
