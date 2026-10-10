@@ -153,7 +153,7 @@ footer{padding:0 24px 20px;line-height:1.7;color:#95adbb}
 <div class="syncbar" role="status" aria-live="polite" aria-label="Estado de los datos sísmicos">
  <div class="sync-state"><span class="led" id="syncLed"></span><div>
    <strong id="syncStatus">Datos incluidos: 09/10/2026, 18:34 (Panamá)</strong>
-   <small id="syncDetail">Actualización automática cada 10 minutos · Preparando primera consulta…</small>
+   <small id="syncDetail">Actualización sin recargar · Preparando primera consulta…</small>
  </div></div>
  <span class="auto-timing" title="La actualización ocurre automáticamente, sin intervención del visitante">↻ AUTOMÁTICA · 10 MIN</span>
 </div>
@@ -218,7 +218,7 @@ footer{padding:0 24px 20px;line-height:1.7;color:#95adbb}
   <p id="diagnosticSummary" class="diagnostic-note" role="status">Consultando el historial de GitHub…</p>
   <div class="diagnostic-cards"><div class="diagnostic-card"><small>Datos que muestra el atlas</small><strong id="diagnosticDataTime">Verificando…</strong><p id="diagnosticDataDetail"></p></div><div class="diagnostic-card"><small>Última consulta a la fuente</small><strong id="diagnosticSourceStatus">Verificando…</strong><p id="diagnosticSourceDetail"></p></div></div>
   <section class="diagnostic-section"><h3>Últimas ejecuciones de GitHub</h3><p id="diagnosticApiDetail" class="diagnostic-caption"></p><div id="diagnosticRuns" class="diagnostic-runs"></div></section>
-  <section class="diagnostic-section"><h3>Registro de la descarga oficial</h3><p class="diagnostic-caption">Lo que registró el colector en GitHub: respuesta HTTP, duración, reintentos y errores. Si la tarea no arrancó, no generó un registro nuevo.</p><pre id="diagnosticSourceLog" class="diagnostic-logs"></pre></section>
+  <section class="diagnostic-section"><h3>Registro de la descarga oficial</h3><p class="diagnostic-caption">Resultado del colector en Cloudflare: respuesta HTTP, duración, reintentos y errores. El historial de GitHub corresponde a la publicación de la página.</p><pre id="diagnosticSourceLog" class="diagnostic-logs"></pre></section>
   <section class="diagnostic-section"><h3>Consultas de esta pestaña</h3><p class="diagnostic-caption">Este registro distingue la lectura del archivo publicado de la consulta a la fuente. Se reinicia al recargar la página.</p><pre id="diagnosticBrowserLog" class="diagnostic-logs"></pre></section>
  </div>
  <div class="diagnostic-actions"><button id="diagnosticCheck">Consultar de nuevo</button><button id="diagnosticDownload">Descargar informe</button><a href="https://github.com/antoniorinaudo/Atlas/actions/workflows/actualizar-sismos.yml" target="_blank" rel="noopener noreferrer">Abrir GitHub Actions ↗</a></div>
@@ -4105,6 +4105,7 @@ maplibre-gl/dist/maplibre-gl.js:
 window.Plotly = Plotly;
 return Plotly;
 }));</script>
+<script src="assets/config.js"></script>
 <script src="assets/diagnostico.js"></script>
 <script>
 'use strict';
@@ -4144,7 +4145,7 @@ function positionEventPopup(){
 }
 function openEventPopup(e,anchor=null){
  if(!e||!lastFilter.some(q=>q.id===e.id))return;
- const panel=$('mapPopup');if(panel.hidden)popupReturnFocus=document.activeElement;panel.hidden=false;panel.dataset.eventId=String(e.id);hideMapHover();const isMobile=window.matchMedia('(max-width:630px)').matches;document.body.classList.toggle('popup-open',isMobile);$('popupBackdrop').hidden=!isMobile;if(isMobile)requestAnimationFrame(()=>$('popupClose').focus({preventScroll:true}));
+ const panel=$('mapPopup');const wasHidden=panel.hidden;if(wasHidden)popupReturnFocus=document.activeElement;panel.hidden=false;panel.dataset.eventId=String(e.id);hideMapHover();const isMobile=window.matchMedia('(max-width:630px)').matches;document.body.classList.toggle('popup-open',isMobile);$('popupBackdrop').hidden=!isMobile;if(isMobile&&wasHidden)requestAnimationFrame(()=>$('popupClose').focus({preventScroll:true}));
  panel.style.setProperty('--event-accent',rgb(e));
  $('popStatus').textContent=e.status;
  $('popMag').textContent=e.mag.toFixed(1);
@@ -4247,6 +4248,7 @@ function render3D(){const f=lastFilter;if(typeof Plotly==='undefined'){$('plot3d
  if(state.selected){let e=f.find(q=>q.id===state.selected);if(e)traces.push({type:'scatter3d',mode:'markers',x:[e.lon],y:[e.lat],z:[-e.depth],marker:{size:17,color:'rgba(0,0,0,0)',line:{color:'#ffffff',width:5}},hoverinfo:'skip',showlegend:false})}
  const latest=latestCatalogEvent();if(latest&&f.some(e=>e.id===latest.id))traces.push({type:'scatter3d',mode:'text',x:[latest.lon],y:[latest.lat],z:[-latest.depth],text:['ÚLTIMO · M '+latest.mag.toFixed(1)],textposition:'top center',textfont:{size:13,color:'#a3f2db'},hoverinfo:'skip',showlegend:false});
  const layout={paper_bgcolor:'#071928',plot_bgcolor:'#071928',font:{family:'Inter, sans-serif',color:'#c9dbe8',size:11},margin:{l:0,r:0,t:0,b:0},showlegend:false,scene:{bgcolor:'#071928',xaxis:{title:'Longitud (°O)',range:[-84,-79.2],showbackground:true,backgroundcolor:'#102c3b',gridcolor:'#345565',zerolinecolor:'#497185',tickfont:{size:10}},yaxis:{title:'Latitud (°N)',range:[6.0,10.0],showbackground:true,backgroundcolor:'#0c2433',gridcolor:'#315467'},zaxis:{title:'Profundidad (km)',range:[-60,5],showbackground:true,backgroundcolor:'#0b2638',gridcolor:'#284b5d'},aspectmode:'manual',aspectratio:{x:1.5,y:1,z:.62},camera:{eye:{x:1.75,y:-1.6,z:1.0}}}};
+ layout.uirevision='atlas';layout.scene.uirevision='atlas-camera';
  if(!plotReady){
   plotReady=true;
   Plotly.newPlot('plot3d',traces,layout,{responsive:true,displaylogo:false,displayModeBar:false}).then(()=>{
@@ -4295,8 +4297,7 @@ function parseOfficialHTML(html){
  return parsed.map((e,i)=>({...e,id:i+1}));
 }
 
-// The public page has NO refresh controls. It reads ./sismos.json from its own domain
-// (recommended) or falls back to a cross-origin GET only if the official site allows CORS.
+// The collector runs independently. Visitors read its saved public copy.
 function formatUpdated(iso){
  const date=new Date(iso);
  if(!Number.isFinite(date.getTime()))throw new Error('Fecha de actualización inválida');
@@ -4312,8 +4313,10 @@ function syncState(kind,title,desc){
  $('syncDetail').textContent=desc;
 }
 const OFFICIAL_IGC='https://sismosgeociencias.up.ac.pa/';
-const REFRESH_EVERY_MS=10*60*1000;
-let updating=false,lastAttempt=0,lastSuccessAt=null,lastFingerprint=null;
+const REFRESH_EVERY_MS=Math.max(30000,Number(window.ATLAS_CONFIG?.pollMs)||60000);
+const DATA_URL=window.ATLAS_CONFIG?.dataUrl||'./sismos.json';
+const cachedCatalogs=new Map();
+let updating=false,lastAttempt=0,lastSuccessAt=null,lastFingerprint=null,lastGoodCatalog=null;
 let shownSnapshotTime='09/10/2026 a las 18:34';
 
 let latestIsSnapshot=true;
@@ -4394,8 +4397,14 @@ function normalizeRows(rows){
  return valid.map((e,i)=>({...e,id:i+1}));
 }
 function showEvents(newEvents,source,fetchedAt,kind='live'){
- const fingerprint=JSON.stringify(newEvents.map(e=>[e.date,e.time,e.lat,e.lon,e.mag,e.depth,e.status,e.region]));
+ formatUpdated(fetchedAt); // Validate before replacing the rendered catalogue.
+ if(lastSuccessAt&&new Date(fetchedAt)<new Date(lastSuccessAt)){
+  window.atlasDiagnostics?.log('warning','Se descartó una copia más antigua; se conservan los datos recientes.');
+  return false;
+ }
+ const fingerprint=JSON.stringify(newEvents.map(e=>[e.date,e.time,e.lat,e.lon,e.mag,e.depth,e.status,e.region,e.displayTime,e.sourceUrl||'']));
  if(fingerprint!==lastFingerprint){
+  const listScroll=$('eventList').scrollTop;
   const old=EVENTS.find(e=>e.id===state.selected);
   EVENTS=newEvents;
   const selectedMatch=old&&EVENTS.find(e=>e.date===old.date&&e.time===old.time&&e.lat===old.lat&&e.lon===old.lon);
@@ -4405,6 +4414,7 @@ function showEvents(newEvents,source,fetchedAt,kind='live'){
   $('periodChips').querySelector('[data-period="today"]').textContent='Hoy · '+dateShort(todayPanama());
   lastFingerprint=fingerprint;
   render();
+  $('eventList').scrollTop=listScroll;
  }
  const stamp=formatUpdated(fetchedAt);
  lastSuccessAt=fetchedAt;
@@ -4413,73 +4423,85 @@ function showEvents(newEvents,source,fetchedAt,kind='live'){
  const ageMs=Date.now()-new Date(fetchedAt).getTime();
  const stale=Number.isFinite(ageMs)&&ageMs>30*60*1000;
  if(kind==='snapshot'){
-  syncState('ok',`Datos publicados hasta el ${stamp} (captura inicial)`,`Fuente: IGC–UP · ${newEvents.length} eventos · Verificando nuevas publicaciones cada 10 minutos`);
+  syncState('ok',`Datos publicados hasta el ${stamp} (captura inicial)`,`Fuente: IGC–UP · ${newEvents.length} eventos · Comprobación cada minuto sin recargar`);
   $('topSyncNotice').textContent=`CAPTURA INICIAL · ${stamp}`;
  }else if(stale){
-  syncState('error',`Datos sin actualizar desde el ${stamp} (Panamá)`,`Última descarga de IGC–UP hace más de 30 minutos · ${newEvents.length} eventos · Comprobación cada 10 minutos`);
+  syncState('error',`Datos sin actualizar desde el ${stamp} (Panamá)`,`Última descarga de IGC–UP hace más de 30 minutos · ${newEvents.length} eventos · Comprobación cada minuto`);
   $('topSyncNotice').textContent=`FUENTE DESACTUALIZADA · ${stamp}`;
  }else{
-  syncState('ok',`Actualizado el ${stamp} (hora de Panamá)`,`Fuente: IGC–UP · ${newEvents.length} eventos · Actualización automática cada 10 minutos`);
+  syncState('ok',`Actualizado el ${stamp} (hora de Panamá)`,`Fuente: IGC–UP · ${newEvents.length} eventos · Nuevos datos sin recargar · Comprobación cada minuto`);
   $('topSyncNotice').textContent=`ACTUALIZADO EL ${stamp}`;
  }
  latestIsSnapshot=kind==='snapshot';renderLatestAlert();
  $('footerSync').textContent=`${kind==='snapshot'?'Captura inicial':'Última actualización oficial'}: ${stamp} (Panamá) · ${source}`;
+ lastGoodCatalog={rows:newEvents,source,fetchedAt,kind};
+ return true;
 }
-async function fetchWithTimeout(url,controller,ms=15000){
+async function fetchWithTimeout(url,controller,ms=15000,options={}){
  const started=performance.now();
- const label=url.startsWith(OFFICIAL_IGC)?'Fuente oficial':url.startsWith('./diagnostico.json')?'Registro publicado':'Archivo de datos';
+ const label=url===window.ATLAS_CONFIG?.dataUrl?'Colector Cloudflare':url===window.ATLAS_CONFIG?.diagnosticUrl||url.startsWith('./diagnostico.json')?'Registro del colector':'Archivo de respaldo';
  window.atlasDiagnostics?.log('info',`GET ${label}: iniciado`);
  const timeout=setTimeout(()=>controller.abort(),ms);
  try{
-  const response=await fetch(url,{cache:'no-store',mode:'cors',signal:controller.signal});
-  window.atlasDiagnostics?.log(response.ok?'ok':'error',`GET ${label}: HTTP ${response.status} · ${Math.round(performance.now()-started)} ms`);
-  if(!response.ok)throw Error('HTTP '+response.status);
+  const response=await fetch(url,{cache:'no-store',mode:'cors',...options,signal:controller.signal});
+  window.atlasDiagnostics?.log(response.ok||response.status===304?'ok':'error',`GET ${label}: HTTP ${response.status} · ${Math.round(performance.now()-started)} ms${response.status===304?' · sin cambios':''}`);
+  if(!response.ok&&response.status!==304)throw Error('HTTP '+response.status);
   return response;
  }catch(error){
   if(!/^HTTP /.test(error.message))window.atlasDiagnostics?.log('error',`GET ${label}: ${error.name==='AbortError'?'Tiempo agotado':error.message+' (red o CORS)'} · ${Math.round(performance.now()-started)} ms`);
   throw error;
  }finally{clearTimeout(timeout)}
 }
+async function readCatalog(url){
+ const previous=cachedCatalogs.get(url);
+ const r=await fetchWithTimeout(url,new AbortController(),15000,{headers:previous?.etag?{'If-None-Match':previous.etag}:{}});
+ if(r.status===304){if(!previous)throw Error('304 sin copia local');return previous.body;}
+ const body=await r.json();
+ formatUpdated(body.fetched_at_utc||body.generated_at_utc);
+ const rows=normalizeRows(body.events);
+ const accepted={...body,events:rows};
+ cachedCatalogs.set(url,{etag:r.headers.get('ETag'),body:accepted});
+ return accepted;
+}
+function displayCatalog(body,source){
+ const accepted=showEvents(body.events,source,body.fetched_at_utc||body.generated_at_utc,body.snapshot_only?'snapshot':'live');
+ if(body.collector)window.atlasDiagnostics?.setCollector(body.collector);
+ if(body.collector?.status==='failure'){
+  syncState('error','Falló la última consulta oficial; se conserva la copia válida',`Última descarga: ${formatUpdated(lastSuccessAt)} (Panamá) · Reintentaremos automáticamente`);
+  $('topSyncNotice').textContent='FUENTE SIN VERIFICAR · '+formatUpdated(lastSuccessAt);
+ }
+ return accepted;
+}
 async function refreshAutomatically(){
  if(updating)return;
  updating=true;lastAttempt=Date.now();
- if(!lastSuccessAt)syncState('loading','Consultando actualizaciones oficiales…','Actualización automática cada 10 minutos');
+ if(!lastSuccessAt)syncState('loading','Consultando actualizaciones oficiales…','Actualización sin recargar · Comprobación cada minuto');
  const issues=[];
  try{
-  // Relative URL works on GitHub Pages and any static hosting on the same origin.
-  // This JSON can be produced by the provided GitHub Actions collector.
   try{
-   const r=await fetchWithTimeout('./sismos.json?t='+Date.now(),new AbortController());
-   const body=await r.json();
-   const dt=body.fetched_at_utc||body.generated_at_utc;
-   if(!dt)throw Error('El JSON no contiene fetched_at_utc');
-   const rows=normalizeRows(body.events);
-   showEvents(rows,'archivo de datos del sitio',dt,body.snapshot_only?'snapshot':'live');
+   displayCatalog(await readCatalog(DATA_URL),DATA_URL.startsWith('https:')?'Colector Cloudflare · IGC–UP':'archivo de datos del sitio');
    return;
-  }catch(err){issues.push('JSON estático: '+err.message);window.atlasDiagnostics?.log('error','Lectura de datos: '+err.message)}
-  // Fallback when no JSON is deployed. Works only if official source permits CORS.
-  try{
-   const r=await fetchWithTimeout(OFFICIAL_IGC+'?atlas_ts='+Date.now(),new AbortController());
-   const html=await r.text();
-   const rows=normalizeRows(parseOfficialHTML(html));
-   showEvents(rows,'GET directo al IGC–UP',new Date().toISOString());
-   return;
-  }catch(err){issues.push('GET oficial: '+err.message);window.atlasDiagnostics?.log('error','Lectura oficial: '+err.message)}
+  }catch(err){issues.push('Colector: '+err.message);window.atlasDiagnostics?.log('error','Lectura del colector: '+err.message)}
+  if(DATA_URL!=='./sismos.json'){
+   try{displayCatalog(await readCatalog('./sismos.json'),'Respaldo del sitio · IGC–UP');}
+   catch(err){issues.push('Respaldo: '+err.message);}
+  }
   throw Error(issues.join(' · '));
  }catch(err){
   window.atlasDiagnostics?.log('error','Actualización no conseguida: '+err.message);
   const last=lastSuccessAt?formatUpdated(lastSuccessAt):shownSnapshotTime;
   syncState('error',`Sin conexión · últimos datos: ${last} (Panamá)`,
-    `No se pudieron obtener datos nuevos. Se muestran los últimos registros disponibles; reintento automático en 10 minutos.`);
+    `No se pudieron verificar datos nuevos. Se conservan los últimos registros disponibles; reintento automático en un minuto.`);
   $('topSyncNotice').textContent=`DATOS SIN VERIFICAR · ${last}`;
  }finally{updating=false}
 }
 // No visitor-driven refresh. A background tab might throttle timers: catch up on resume.
 setTimeout(refreshAutomatically,700);
-setInterval(refreshAutomatically,REFRESH_EVERY_MS);
+setInterval(()=>{if(!document.hidden)refreshAutomatically();},REFRESH_EVERY_MS);
 document.addEventListener('visibilitychange',()=>{
  if(!document.hidden&&Date.now()-lastAttempt>=REFRESH_EVERY_MS)refreshAutomatically();
 });
+window.addEventListener('online',()=>{if(!document.hidden&&Date.now()-lastAttempt>5000)refreshAutomatically();});
 
 $('periodChips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{state.period=c.dataset.period;$('periodChips').querySelectorAll('.chip').forEach(q=>q.classList.toggle('active',q===c));render()});
 $('magRange').oninput=e=>{state.minMag=+e.target.value;$('magValue').textContent='M '+state.minMag.toFixed(1)+'+';render()};

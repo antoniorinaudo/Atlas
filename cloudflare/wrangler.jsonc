@@ -1,0 +1,11 @@
+{
+  "name": "atlas-sismico-panama-datos",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-10",
+  "workers_dev": true,
+  "account_id": "5d12f6ce42fe16bcf17b68f4ba3fbc79",
+  "triggers": { "crons": ["*/10 * * * *"] },
+  "kv_namespaces": [{ "binding": "ATLAS_KV", "id": "67c0507d24db437da4e9f8aaaa92f0e2" }],
+  "observability": { "enabled": true },
+  "logpush": false
+}

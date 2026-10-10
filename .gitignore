@@ -1,0 +1,6 @@
+.wrangler/
+cloudflare/node_modules/
+.dev.vars
+.env
+actualizacion.log
+__pycache__/

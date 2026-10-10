@@ -8,17 +8,38 @@ Mapa interactivo 2D + 3D que representa **los eventos del catálogo público del
 2. Descomprime el ZIP de distribución y arrastra **el contenido interior** de la carpeta del proyecto (no el archivo ZIP), incluyendo `index.html`, `sismos.json`, `scripts/` y `.github/`, a **Add file → Upload files** en el repositorio. Confirma con **Commit changes**. (Si estás usando Git, puedes hacer `git add .`, `git commit` y `git push`.)
 3. En el repositorio, abre **Settings → Pages → Build and deployment → Source** y selecciona **GitHub Actions**. No selecciones *Deploy from a branch*: la actualización continua por token de GitHub no activaría compilaciones de Pages basadas en ramas.
 4. Ve a **Actions → Actualizar y publicar atlas sísmico → Run workflow → Run workflow**, para forzar el primer despliegue (solo administradores). Revisa que finalice correctamente. El sitio aparecerá en **Settings → Pages**; normalmente será `https://TU_USUARIO.github.io/atlas-sismico-panama/`.
-5. Sin interacción de visitantes, el workflow buscará los datos oficiales cada 10 minutos y **desplegará de nuevo el sitio directamente**; el navegador de cada visitante comprobará el `sismos.json` del mismo dominio cada 10 minutos cuando mantenga abierta la pestaña.
+5. El workflow publica los cambios del sitio en `push` y cuando el administrador lo ejecuta manualmente. La recolección periódica está en Cloudflare y no necesita un despliegue de Pages por cada actualización de datos.
 
-**No necesitas servidor, clave, backend o cron externo.** Las acciones en repositorios públicos son gratuitas con las condiciones actuales de GitHub. El script solo utiliza la librería estándar de Python.
+La página permanece en GitHub Pages. `assets/config.js` identifica la API pública de datos, sin credenciales. El código del colector y su cron están en `cloudflare/`.
+
+## Recolección en Cloudflare y actualización sin recargar
+
+El Worker `atlas-sismico-panama-datos` consulta el catálogo oficial **cada diez minutos**, con hasta tres intentos para errores transitorios y timeout de 25 segundos por intento. Conserva catálogo y diagnóstico juntos en Workers KV. Una descarga fallida mantiene los últimos eventos válidos y su fecha real, publica el error y deja la ejecución programada marcada como fallida. Ninguna ruta pública permite iniciar una descarga ni escribir datos.
+
+API pública: `https://atlas-sismico-panama-datos.ptydev.workers.dev/sismos.json`. El diagnóstico está en `/diagnostico.json`. La API permite lectura CORS, `HEAD`, preflight y peticiones condicionales `If-None-Match`; una versión sin cambios devuelve `304`, sin reenviar el catálogo.
+
+La pestaña visible comprueba la versión **cada minuto** con `fetch()`. Si cambia el catálogo, actualiza mapa, lista y último evento sin recargar la página. Conserva filtros, zoom 2D y selección por fecha/hora/coordenadas; los IDs de fila pueden cambiar. La ficha abierta recibe las correcciones del evento. Una versión idéntica no redibuja marcadores. `uirevision` mantiene la cámara de Plotly entre actualizaciones. La comprobación se pausa con la pestaña oculta y se retoma al regresar; también reintenta al recuperar conexión. Si la API falla, intenta leer `sismos.json` como respaldo y nunca retrocede a una fecha anterior a la que ya muestra.
+
+Esto detecta cambios mediante consultas periódicas, no mediante notificaciones push de la fuente. El intervalo observable depende de la publicación oficial, el cron, la propagación de KV y la comprobación del navegador. No ofrece actualización instantánea. Cloudflare advierte que los cambios de cron pueden tardar hasta 15 minutos en propagarse y KV tiene consistencia eventual.
+
+Para desplegar cambios del colector, con una sesión autorizada de Cloudflare:
+
+```powershell
+cd cloudflare
+npx.cmd wrangler deploy
+```
+
+La configuración incluida corresponde al Worker y namespace KV de este proyecto. Al instalarlo en otra cuenta, crea tu propio namespace y cambia `account_id`, `kv_namespaces[].id` y las URLs de `assets/config.js`. No publiques tokens ni archivos `.dev.vars`. `node --test cloudflare/worker.test.mjs` valida extracción, reintentos, conservación de datos y API condicional.
+
+El cron hace 144 sincronizaciones diarias y una escritura KV por ejecución. Cada comprobación de una pestaña consume una petición al Worker y una lectura KV, incluso si devuelve `304`. Los límites gratuitos publicados son 100.000 peticiones Worker/día, 100.000 lecturas KV/día y 1.000 escrituras KV/día, compartidos con los demás usos de la cuenta. No se ha activado un plan de pago. Referencias: [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/), [Workers KV](https://developers.cloudflare.com/kv/concepts/how-kv-works/), [límites Workers](https://developers.cloudflare.com/workers/platform/limits/) y [límites KV](https://developers.cloudflare.com/kv/platform/limits/).
 
 ## Estado de la fuente y limitaciones
 
 El panel indica `Actualizado el DD/MM/AAAA a las HH:mm` usando **la fecha/hora real de la descarga oficial** en zona `America/Panama`, no el reloj de quien visita. Si falla IGC-UP, conserva el último `sismos.json` publicado; el estado advertirá que la captura no es reciente. El JSON incluido inicialmente es una captura histórica, no una consulta viva.
 
-La descarga realiza hasta tres intentos ante fallos de red o HTTP transitorios (408, 429, 500, 502, 503 y 504), con pausas de 2 y 4 segundos. Una respuesta inválida no sustituye los datos existentes. El resumen de Actions muestra la fecha real de descarga y el número de registros; si se agotan los intentos, el sitio conserva su última copia válida y el workflow queda marcado como fallido. Un resultado verde confirma que la descarga y la publicación terminaron correctamente, pero no garantiza que GitHub inicie la siguiente ejecución programada.
+La descarga realiza hasta tres intentos ante fallos de red o HTTP transitorios (408, 429, 500, 502, 503 y 504), con pausas de 2 y 4 segundos. Una respuesta inválida no sustituye los datos existentes. El diagnóstico de Cloudflare muestra la fecha real de descarga, el número de registros y los intentos. Un resultado verde de GitHub ahora confirma la publicación del sitio, no la recolección de la fuente.
 
-GitHub Actions **no garantiza periodicidad exacta**; los disparadores programados pueden retrasarse/omitirse y GitHub puede desactivar los schedules de repositorios públicos sin actividad tras 60 días. GitHub Pages tiene su propia latencia de despliegue, por lo que el indicador de última actualización es la referencia de frescura.
+El cron anterior de GitHub se retiró: la actualización de datos ya no depende de que Actions inicie una tarea o vuelva a desplegar Pages. La fecha mostrada siempre es la de la descarga oficial, no la del despliegue ni la de la consulta del visitante.
 
 **No es un sistema de alerta temprana ni sustituye información oficial de emergencia.** Los valores publicados por el IGC-UP pueden ser revisados posteriormente.
 
@@ -27,22 +48,24 @@ GitHub Actions **no garantiza periodicidad exacta**; los disparadores programado
 | Archivo | Uso |
 | --- | --- |
 | `index.html` | Atlas 2D/3D y fichas emergentes, responsive, independiente de paquetes externos |
-| `sismos.json` | Captura inicial, sustituida en cada ejecución cuando IGC-UP responde |
-| `diagnostico.json` | Resultado y registro de la última descarga publicada |
+| `sismos.json` | Copia de respaldo del sitio; el catálogo activo se obtiene de Cloudflare |
+| `diagnostico.json` | Copia de diagnóstico para distribución; el panel lee el registro activo de Cloudflare |
+| `assets/config.js` | URLs públicas del colector y tiempo de comprobación |
+| `cloudflare/worker.mjs`, `cloudflare/wrangler.jsonc` | Recolección programada, KV y API de lectura condicional |
 | `assets/diagnostico.js`, `assets/diagnostico.css` | Panel de diagnóstico y consulta pública del historial de Actions |
 | `scripts/actualizar_sismos.py` | Descarga del HTML y extracción de la tabla a JSON |
 | `scripts/generar_diagnostico.py` | Genera el registro público de descarga, sin credenciales |
-| `.github/workflows/actualizar-sismos.yml` | Actualización, build y publicación cada 10 minutos, también en `push` y a demanda del administrador |
+| `.github/workflows/actualizar-sismos.yml` | Publicación del sitio en `push` y a demanda del administrador |
 
 ### Controles para visitantes
 
-Los visitantes pueden pulsar un círculo del mapa 2D, un punto de 3D, o un evento de la lista para mostrar la ficha, cerrarla con × o `Escape`, copiar coordenadas, abrir el registro original, filtrar por magnitud/profundidad/fecha y exportar CSV o GeoJSON. **No pueden forzar una consulta de actualización**: solo las programaciones públicas del workflow y el temporizador de lectura del navegador refrescan datos.
+Los visitantes pueden pulsar un círculo del mapa 2D, un punto de 3D, o un evento de la lista para mostrar la ficha, cerrarla con × o `Escape`, copiar coordenadas, abrir el registro original, filtrar por magnitud/profundidad/fecha y exportar CSV o GeoJSON. No pueden forzar una descarga de la fuente oficial: solo el cron de Cloudflare hace la recolección. El temporizador del navegador comprueba la copia guardada.
 
 ## Diagnóstico de actualización
 
-El botón **Diagnóstico de actualización**, al pie del sitio, muestra la fecha real de los datos, el registro publicado de la última descarga oficial (HTTP, duración, intentos y errores), las últimas 20 ejecuciones del workflow y las consultas de la pestaña actual. Distingue ejecuciones automáticas, manuales y por cambios de código. Cada ejecución enlaza con sus registros completos en GitHub; se puede descargar un informe JSON para analizarlo.
+El botón **Diagnóstico de actualización**, al pie del sitio, muestra la fecha real de los datos, el registro de la última descarga en Cloudflare (HTTP, duración, intentos y errores), las últimas 20 publicaciones de GitHub y las consultas de la pestaña actual. Su resumen evalúa la salud de Cloudflare, independientemente del historial de publicación. Cada publicación enlaza con sus registros completos en GitHub; se puede descargar un informe JSON para analizarlo.
 
-El historial se consulta mediante la API pública de GitHub, sin credenciales, únicamente al abrir el panel o solicitar otra consulta, con al menos un minuto entre consultas. Si la API limita o rechaza la lectura, el panel lo indica por separado: ese error no prueba un bloqueo de la fuente sísmica. El panel no inicia workflows ni descargas oficiales. `diagnostico.json` se actualiza y publica en cada ejecución, incluso si la descarga falla; si GitHub no inicia una tarea, no se produce un nuevo registro. Los registros del navegador son de la sesión actual y se reinician al recargar.
+El historial se consulta mediante la API pública de GitHub, sin credenciales, únicamente al abrir el panel o solicitar otra consulta, con al menos un minuto entre consultas. Si la API limita o rechaza la lectura, el panel lo indica por separado: ese error no prueba un bloqueo de la fuente sísmica. El panel no inicia workflows ni descargas oficiales. El registro de Cloudflare se guarda en cada recolección, incluso si la descarga falla. Los registros del navegador son de la sesión actual y se reinician al recargar.
 
 ## Licencia y créditos
 

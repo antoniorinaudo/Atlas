@@ -8,13 +8,14 @@
  let backend=null,runs=null,apiIssue='',backendIssue='',checkedAt=null,nextCheck=0,busy=false,timer=null;
  const time=iso=>{const d=new Date(iso);return iso&&Number.isFinite(d.getTime())?new Intl.DateTimeFormat('es-PA',{timeZone:'America/Panama',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d):'Sin registro todavía'};
  const age=iso=>iso?Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000)):null;
- const eventName=event=>({schedule:'Automática',workflow_dispatch:'Manual',push:'Cambio de código'})[event]||event||'Sin información';
+ const eventName=event=>({schedule:'Automática',bootstrap:'Inicialización verificada',workflow_dispatch:'Manual',push:'Cambio de código'})[event]||event||'Sin información';
  const statusName=run=>run.status!=='completed'?({queued:'En cola',in_progress:'En ejecución',waiting:'Esperando',requested:'Solicitada',pending:'Pendiente'})[run.status]||run.status:({success:'Correcta',failure:'Falló',cancelled:'Cancelada',timed_out:'Tiempo agotado',skipped:'Omitida',action_required:'Requiere atención'})[run.conclusion]||run.conclusion||'Finalizada';
  function browserLog(){get('diagnosticBrowserLog').textContent=entries.length?entries.map(e=>`${time(e.at)} · ${e.level.toUpperCase()} · ${e.message}`).join('\n'):'Todavía no hay consultas registradas en esta pestaña.'}
  window.atlasDiagnostics={
   catalog:null,
   log(level,message){entries.push({at:new Date().toISOString(),level,message:String(message).slice(0,2500)});if(entries.length>50)entries.shift();if(dialog.open)browserLog()},
   setCatalog(catalog){this.catalog=catalog;if(dialog.open)render()},
+  setCollector(collector){if(collector?.collector==='cloudflare'){backend=collector;backendIssue='';if(dialog.open)render()}},
  };
  function render(){
   const catalog=window.atlasDiagnostics.catalog;
@@ -27,7 +28,14 @@
   get('diagnosticSourceLog').textContent=Array.isArray(backend?.logs)?backend.logs.map(String).join('\n'):backendIssue||'Sin registro publicado.';
   const note=get('diagnosticSummary');
   const automatic=runs?.find(r=>r.event==='schedule');
-  if(!runs){note.textContent=apiIssue||'Consultando el historial de GitHub…';note.dataset.tone=apiIssue?'warning':'normal'}
+  if(backend?.collector==='cloudflare'){
+   if(backend.status==='failure'){note.textContent='Falló la última consulta de Cloudflare al IGC–UP. Se conserva la última copia válida y su fecha real. Revisa el registro de descarga.';note.dataset.tone='warning'}
+   else if(backend.event==='bootstrap'){note.textContent='Cloudflare tiene una copia inicial verificada. Todavía debe confirmar su primera recolección programada.';note.dataset.tone='warning'}
+   else if(age(backend.checked_at_utc)>30||minutes>30){note.textContent='La recolección de Cloudflare está atrasada. Se conserva la copia anterior y su fecha real.';note.dataset.tone='warning'}
+   else{note.textContent='La última recolección programada de Cloudflare fue correcta. La página comprueba cambios cada minuto y conserva tus filtros y zoom. GitHub publica el sitio cuando cambia el código.';note.dataset.tone='normal'}
+   if(backendIssue){note.textContent+=' No se pudo consultar el diagnóstico actual; se muestra el último registro leído.';note.dataset.tone='warning'}
+  }
+  else if(!runs){note.textContent=apiIssue||'Consultando el historial de GitHub…';note.dataset.tone=apiIssue?'warning':'normal'}
   else if(!automatic){note.textContent=`No aparecen ejecuciones automáticas en ${runs.length===1?'la última ejecución consultada':'las últimas '+runs.length+' ejecuciones consultadas'}. Las manuales y los cambios de código sí pueden actualizar el sitio. Esto no demuestra un bloqueo de la fuente.`;note.dataset.tone='warning'}
   else if(automatic.status!=='completed'){note.textContent=`La última ejecución automática está ${statusName(automatic).toLowerCase()}. Puedes abrirla para revisar sus pasos.`;note.dataset.tone='normal'}
   else if(automatic.conclusion!=='success'){note.textContent='La última ejecución automática no terminó correctamente. Abre sus registros en GitHub para identificar el paso que falló.';note.dataset.tone='warning'}
@@ -50,7 +58,7 @@
  }
  function updateButton(){const seconds=Math.ceil((nextCheck-Date.now())/1000);const button=get('diagnosticCheck');button.disabled=busy||seconds>0;button.textContent=busy?'Consultando…':seconds>0?`Consultar en ${seconds}s`:'Consultar de nuevo'}
  async function readBackend(){
-  try{const response=await fetchWithTimeout('./diagnostico.json?t='+Date.now(),new AbortController());const body=await response.json();if(!['success','failure','pending'].includes(body.status))throw Error('Formato de registro no reconocido');backend=body;backendIssue=''}
+  try{const response=await fetchWithTimeout(window.ATLAS_CONFIG?.diagnosticUrl||'./diagnostico.json?t='+Date.now(),new AbortController());const body=await response.json();if(!['success','failure','pending'].includes(body.status))throw Error('Formato de registro no reconocido');backend=body;backendIssue=''}
   catch(error){backendIssue='No se pudo leer el registro publicado: '+error.message;window.atlasDiagnostics.log('error',backendIssue)}
  }
  async function readActions(){
