@@ -4,7 +4,7 @@
  const log=(level,message)=>window.atlasDiagnostics?.log(level,message);
  const identity=eventIdentity,stamp=e=>e.date+'T'+e.time;
  const newUntil=new Map();let noticeKey=null,pulseActive=false;
- window.atlasMap={labelsVisible:true,isGesturing:false,fitView(v){
+ window.atlasMap={isGesturing:false,fitView(v){
   if(!matchMedia('(max-width:630px)').matches)return v;
   const b=map.getBoundingClientRect();if(!b.width||!b.height)return v;
   let w=v[2],h=w*b.height/b.width;if(h>900){h=900;w=h*b.width/b.height;}
@@ -12,7 +12,6 @@
  }};
  get('mapOptionsToggle').onclick=()=>{const panel=document.querySelector('.map-panel'),open=panel.classList.toggle('mobile-options-open');get('mapOptionsToggle').setAttribute('aria-expanded',String(open));renderMap();};
  setView(window.atlasMap.fitView(state.view),'Pacífico central');
- get('mapLabelToggle').onclick=()=>{window.atlasMap.labelsVisible=!window.atlasMap.labelsVisible;get('mapLabelToggle').setAttribute('aria-pressed',String(window.atlasMap.labelsVisible));renderMap();};
  get('mapGoLatest').onclick=()=>focusCatalogEvent(latestCatalogEvent());
  get('mapNoticeClose').onclick=()=>{notice.hidden=true;get('mapGoLatest').focus({preventScroll:true});};
  get('mapNoticeView').onclick=()=>{const e=EVENTS.find(e=>identity(e)===noticeKey);notice.hidden=true;focusCatalogEvent(e);};
@@ -96,7 +95,7 @@
  const distance=points=>points.length>1?Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y):0;
  const isControl=target=>target.closest('button,a,input,select');
  function begin(){const points=[...pointers.values()];gesture={view:[...state.view],center:center(points),distance:distance(points),bounds:map.getBoundingClientRect()};window.atlasMap.isGesturing=true;surface.classList.add('dragging');hideMapHover();}
- function redraw(){map.setAttribute('viewBox',state.view.join(' '));renderLatestMapCard();}
+ function redraw(){map.setAttribute('viewBox',state.view.join(' '));resizeMarkersDuringZoom();renderLatestMapCard();}
  function candidatesAt(event,touch){
   const candidates=[];
   for(const node of map.querySelectorAll('.epicenter')){
