@@ -122,7 +122,7 @@
  };
  get('installClose').onclick=()=>get('installDialog').close();
  if('serviceWorker'in navigator&&isSecureContext){
-  navigator.serviceWorker.register('./sw.js?v=20261010-visible-latest10',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
+  navigator.serviceWorker.register('./sw.js?v=20261010-mobile-beacon11',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
    registration=reg;if(supported)subscription=await reg.pushManager.getSubscription();
    if(record?.pendingDelete){try{await api('unsubscribe',{id:record.id,token:record.token});record={minMagnitude:record.minMagnitude};save();}catch{}}
    availability();window.atlasPush.handleDeepLink();

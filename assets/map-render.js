@@ -22,7 +22,8 @@ function resizeMarkersDuringZoom(){
   node.querySelector('.point-hit').setAttribute('r',Math.max(metrics.radius,mobile?22:15)/k);
   node.querySelector('.marker-value').style.fontSize=metrics.fontSize/k+'px';
   const ring=node.querySelector('.selected-ring');if(ring){ring.setAttribute('r',(metrics.radius+4)/k);ring.style.strokeWidth=1.7/k;ring.style.strokeDasharray=4/k+' '+3/k;}
-  const pulse=node.querySelector('.latest-pulse');if(pulse){pulse.setAttribute('r',(metrics.radius+5)/k);pulse.style.strokeWidth=1.5/k;}
+  const locator=node.querySelector('.latest-location-ring');if(locator){locator.setAttribute('r',(metrics.radius+3)/k);locator.style.strokeWidth=2/k;}
+  node.querySelectorAll('.latest-pulse').forEach(pulse=>{pulse.setAttribute('r',(metrics.radius+(node.classList.contains('latest-event')?3:5))/k);pulse.style.strokeWidth=(node.classList.contains('latest-event')?2:1.5)/k;});
  }
  group.dataset.markerScale=String(k);
 }
@@ -40,12 +41,13 @@ function renderMap(){
  let contents='';
  for(const e of ordered){
   const metrics=markerMetricsPx(e.mag,mobile),r=metrics.radius/k,c=rgb(e),selected=e.id===state.selected,isLatest=e.id===latest?.id;
-  const age=Date.now()-Date.parse(e.date+'T'+e.time+'-05:00');
-  const recent=!latestIsSnapshot&&lastSuccessAt&&Date.now()-Date.parse(lastSuccessAt)<5*60000&&age>=0&&age<30*60000;
   const newlyPublished=!!window.atlasLiveUI?.isNew(e);
   const name=`${isLatest?'Último registro · ':''}M ${e.mag.toFixed(1)} · ${e.region} · ${e.depth} km · ${formatLocalTime(e.time,false)} Panamá`;
-  contents+=`<g class="point epicenter ${isLatest?'latest-event':''} ${newlyPublished?'new-event':''}" data-id="${e.id}" data-mag="${e.mag}" role="button" tabindex="0" aria-label="${escaped(name)}">`;
-  if((isLatest&&recent)||newlyPublished)contents+=`<circle class="latest-pulse" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+5/k}" style="stroke-width:${1.5/k}"/>`;
+  contents+=`<g class="point epicenter ${isLatest?'latest-event':''} ${newlyPublished?'new-event':''}" data-id="${e.id}" data-mag="${e.mag}" style="--epicenter-accent:${c}" role="button" tabindex="0" aria-label="${escaped(name)}">`;
+  if(isLatest){
+   contents+=`<circle class="latest-location-ring" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+3/k}" style="stroke-width:${2/k}"/>`;
+   for(const delay of ['', ' latest-pulse-lag'])contents+=`<circle class="latest-pulse${delay}" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+3/k}" style="stroke-width:${2/k}"/>`;
+  }else if(newlyPublished)contents+=`<circle class="latest-pulse" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+5/k}" style="stroke-width:${1.5/k}"/>`;
   contents+=`<circle class="point-hit" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${Math.max(r,(mobile?22:15)/k)}"/><circle class="marker-outer" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r}" fill="${c}" stroke="${c}" style="stroke-width:${1/k}"/>`;
   if(selected)contents+=`<circle class="selected-ring" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+4/k}" style="stroke-width:${1.7/k};stroke-dasharray:${4/k} ${3/k}"/>`;
   contents+=`<text class="marker-value" x="${x(e.lon)}" y="${y(e.lat)}" dy=".35em" text-anchor="middle" style="font-size:${metrics.fontSize/k}px">${e.mag.toFixed(1)}</text>`;
