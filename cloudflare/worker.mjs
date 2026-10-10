@@ -1,4 +1,4 @@
-// Read-only public API. Only the scheduled handler contacts the official source.
+// Read-only public API. One Durable Object harvests and broadcasts changes.
 export const SOURCE = 'https://sismosgeociencias.up.ac.pa/';
 export const KEY = 'catalog-v1';
 const retryable = new Set([408, 429, 500, 502, 503, 504]);
@@ -80,38 +80,101 @@ export async function pack(catalog,diagnostic) {
   const etag='"'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')+'"';
   return {catalog,diagnostic,etag};
 }
-export async function synchronize(env, event, fetcher=fetch, wait=sleep) {
-  const old=await env.ATLAS_KV.get(KEY,{type:'json',cacheTtl:30});
-  const checked=new Date().toISOString();
-  const base={collector:'cloudflare',event:'schedule',trigger_schedule:event.cron,checked_at_utc:checked,scheduled_at_utc:new Date(event.scheduledTime).toISOString()};
-  try {
-    const result=await collect(fetcher,wait);
-    const fetched=new Date().toISOString();
-    const catalog={source:'IGC-UP',source_url:SOURCE,fetched_at_utc:fetched,snapshot_only:false,events:result.events};
-    const diagnostic={...base,status:'success',fetched_at_utc:fetched,event_count:result.events.length,http_status:result.http_status,logs:result.logs};
-    await env.ATLAS_KV.put(KEY,JSON.stringify(await pack(catalog,diagnostic)));
-    console.log(JSON.stringify(diagnostic));
-  } catch(error) {
-    const diagnostic={...base,status:'failure',fetched_at_utc:old?.catalog?.fetched_at_utc||null,event_count:old?.catalog?.events?.length||0,http_status:error.http_status??null,logs:error.logs||[error.message]};
-    await env.ATLAS_KV.put(KEY,JSON.stringify(await pack(old?.catalog||null,diagnostic)));
-    console.error(JSON.stringify(diagnostic));
-    throw error;
-  }
-}
 export default {
-  async scheduled(event, env) {await synchronize(env,event);},
   async fetch(request,env) {
-    const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'If-None-Match','Access-Control-Expose-Headers':'ETag','Access-Control-Max-Age':'86400','X-Content-Type-Options':'nosniff'};
-    if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
-    if(!['GET','HEAD'].includes(request.method))return new Response('{"error":"API de solo lectura"}',{status:405,headers:{...headers,Allow:'GET, HEAD, OPTIONS'}});
     const path=new URL(request.url).pathname;
-    if(!['/sismos.json','/diagnostico.json'].includes(path))return new Response('{"error":"Ruta no encontrada"}',{status:404,headers});
-    const stored=await env.ATLAS_KV.get(KEY,{type:'json',cacheTtl:30});
-    if(!stored)return new Response('{"error":"Colector pendiente de su primera descarga"}',{status:503,headers});
-    headers.ETag=stored.etag;
-    if(request.headers.get('If-None-Match')?.split(',').map(v=>v.trim().replace(/^W\//,'')).some(v=>v===stored.etag||v==='*'))return new Response(null,{status:304,headers});
-    const data=path==='/diagnostico.json'?stored.diagnostic:stored.catalog?{...stored.catalog,collector:stored.diagnostic}:null;
-    if(!data)return new Response('{"error":"No hay copia válida disponible"}',{status:503,headers});
-    return new Response(request.method==='HEAD'?null:JSON.stringify(data),{headers});
+    if(!['/sismos.json','/diagnostico.json','/live'].includes(path))return jsonResponse({error:'Ruta no encontrada'},404);
+    if(request.method==='OPTIONS')return new Response(null,{status:204,headers:publicHeaders()});
+    if(!['GET','HEAD'].includes(request.method))return jsonResponse({error:'API de solo lectura'},405);
+    return env.ATLAS_LIVE.getByName('panama').fetch(request);
   }
 };
+function publicHeaders() {
+  return {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'If-None-Match','Access-Control-Expose-Headers':'ETag','Access-Control-Max-Age':'86400','X-Content-Type-Options':'nosniff'};
+}
+function jsonResponse(data,status=200,extra={}) {return new Response(JSON.stringify(data),{status,headers:{...publicHeaders(),...extra}});}
+export async function eventRevision(events) {
+  const data=events.map(({id,...event})=>event);
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(data)));
+  return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
+export class AtlasLive {
+  constructor(ctx,env) {
+    this.ctx=ctx;this.env=env;this.snapshot=null;this.inFlight=null;
+    this.ready=ctx.blockConcurrencyWhile(async()=>{
+      ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS atlas_state (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
+      const row=ctx.storage.sql.exec('SELECT value FROM atlas_state WHERE id = 1').toArray()[0];
+      if(row)this.snapshot=JSON.parse(row.value);
+      else if(env.ATLAS_KV){
+        this.snapshot=await env.ATLAS_KV.get(KEY,{type:'json',cacheTtl:30});
+        if(this.snapshot){this.snapshot.revision=await eventRevision(this.snapshot.catalog?.events||[]);this.save(this.snapshot);}
+      }
+      // Alarms survive hibernation. Seed a first check, never duplicate an existing one.
+      if(await ctx.storage.getAlarm()===null)await ctx.storage.setAlarm(Date.now()+1000);
+    });
+  }
+  save(snapshot) {
+    this.ctx.storage.sql.exec('INSERT INTO atlas_state (id,value) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',JSON.stringify(snapshot));
+    this.snapshot=snapshot;
+  }
+  broadcast(message) {
+    const data=JSON.stringify(message);
+    for(const socket of this.ctx.getWebSockets())try{socket.send(data);}catch{try{socket.close(1011,'Reconectar');}catch{}}
+  }
+  async alarm() {
+    await this.ready;
+    if(this.inFlight)return this.inFlight;
+    this.inFlight=this.check().finally(()=>{this.inFlight=null;});
+    return this.inFlight;
+  }
+  async check(fetcher=fetch,wait=sleep) {
+    // A safety alarm is persisted before I/O so an interrupted invocation recovers.
+    await this.ctx.storage.setAlarm(Date.now()+120000);
+    const old=this.snapshot;
+    const checked=new Date().toISOString();
+    const base={collector:'cloudflare',service:'durable-object',event:'alarm',checked_at_utc:checked};
+    let catalog=old?.catalog||null,diagnostic,revision=old?.revision||null;
+    try {
+      const result=await collect(fetcher,wait),fetched=new Date().toISOString();
+      catalog={source:'IGC-UP',source_url:SOURCE,fetched_at_utc:fetched,snapshot_only:false,events:result.events};
+      revision=await eventRevision(result.events);
+      diagnostic={...base,status:'success',fetched_at_utc:fetched,event_count:result.events.length,http_status:result.http_status,logs:result.logs,failure_count:0};
+    }catch(error){
+      diagnostic={...base,status:'failure',fetched_at_utc:catalog?.fetched_at_utc||null,event_count:catalog?.events?.length||0,http_status:error.http_status??null,logs:error.logs||[error.message],failure_count:(old?.diagnostic?.failure_count||0)+1};
+    }
+    const delay=diagnostic.status==='success'?60000:Math.min(600000,60000*2**Math.min(4,diagnostic.failure_count));
+    diagnostic.next_check_at_utc=new Date(Date.now()+delay).toISOString();
+    const snapshot={...await pack(catalog,diagnostic),revision};
+    this.save(snapshot);
+    await this.ctx.storage.setAlarm(Date.now()+delay);
+    const changed=revision!==old?.revision;
+    this.broadcast(changed&&catalog?{type:'catalog',etag:snapshot.etag,revision,payload:{...catalog,collector:diagnostic}}:{type:'heartbeat',etag:snapshot.etag,revision,collector:diagnostic});
+    console.log(JSON.stringify({event:'alarm',status:diagnostic.status,changed,event_count:diagnostic.event_count,next_check_at_utc:diagnostic.next_check_at_utc,logs:diagnostic.logs}));
+  }
+  async fetch(request) {
+    await this.ready;
+    const path=new URL(request.url).pathname;
+    if(path==='/live'){
+      if(request.headers.get('Upgrade')?.toLowerCase()!=='websocket')return jsonResponse({error:'Se requiere WebSocket'},426);
+      if(this.ctx.getWebSockets().length>=1000)return jsonResponse({error:'Conexiones ocupadas; usar API de lectura'},429);
+      const [client,server]=Object.values(new WebSocketPair());
+      this.ctx.acceptWebSocket(server);
+      if(this.snapshot?.catalog)server.send(JSON.stringify({type:'catalog',etag:this.snapshot.etag,revision:this.snapshot.revision,payload:{...this.snapshot.catalog,collector:this.snapshot.diagnostic}}));
+      else server.send(JSON.stringify({type:'pending',message:'Esperando la primera descarga oficial'}));
+      return new Response(null,{status:101,webSocket:client});
+    }
+    const headers=publicHeaders(),stored=this.snapshot;
+    if(!stored)return new Response('{"error":"Colector pendiente de su primera descarga"}',{status:503,headers});
+    headers.ETag=stored.etag;
+    const data=path==='/diagnostico.json'?stored.diagnostic:stored.catalog?{...stored.catalog,collector:stored.diagnostic}:null;
+    if(!data)return new Response('{"error":"No hay copia válida disponible"}',{status:503,headers});
+    if(request.headers.get('If-None-Match')?.split(',').map(v=>v.trim().replace(/^W\//,'')).some(v=>v===stored.etag||v==='*'))return new Response(null,{status:304,headers});
+    return new Response(request.method==='HEAD'?null:JSON.stringify(data),{headers});
+  }
+  async webSocketMessage(socket,message) {
+    // Clients cannot trigger harvesting, change settings or publish data.
+    if(message==='ping')socket.send(JSON.stringify({type:'pong'}));else socket.close(1008,'Canal de solo lectura');
+  }
+  async webSocketClose(socket,code,reason) {socket.close(code,reason);}
+  async webSocketError(socket) {try{socket.close(1011,'Reconectar');}catch{}}
+}

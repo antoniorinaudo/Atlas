@@ -7,31 +7,40 @@ Mapa interactivo 2D + 3D que representa **los eventos del catálogo público del
 1. Entra a **https://github.com/new**. Crea un repositorio público, por ejemplo `atlas-sismico-panama`, con rama predeterminada `main`.
 2. Descomprime el ZIP de distribución y arrastra **el contenido interior** de la carpeta del proyecto (no el archivo ZIP), incluyendo `index.html`, `sismos.json`, `scripts/` y `.github/`, a **Add file → Upload files** en el repositorio. Confirma con **Commit changes**. (Si estás usando Git, puedes hacer `git add .`, `git commit` y `git push`.)
 3. En el repositorio, abre **Settings → Pages → Build and deployment → Source** y selecciona **GitHub Actions**. No selecciones *Deploy from a branch*: la actualización continua por token de GitHub no activaría compilaciones de Pages basadas en ramas.
-4. Ve a **Actions → Actualizar y publicar atlas sísmico → Run workflow → Run workflow**, para forzar el primer despliegue (solo administradores). Revisa que finalice correctamente. El sitio aparecerá en **Settings → Pages**; normalmente será `https://TU_USUARIO.github.io/atlas-sismico-panama/`.
+4. Ve a **Actions → Publicar atlas sísmico → Run workflow → Run workflow**, para forzar el primer despliegue (solo administradores). Revisa que finalice correctamente. El sitio aparecerá en **Settings → Pages**; normalmente será `https://TU_USUARIO.github.io/atlas-sismico-panama/`.
 5. El workflow publica los cambios del sitio en `push` y cuando el administrador lo ejecuta manualmente. La recolección periódica está en Cloudflare y no necesita un despliegue de Pages por cada actualización de datos.
 
-La página permanece en GitHub Pages. `assets/config.js` identifica la API pública de datos, sin credenciales. El código del colector y su cron están en `cloudflare/`.
+La página permanece en GitHub Pages. `assets/config.js` identifica la API pública de datos, sin credenciales. El código del servicio y su configuración están en `cloudflare/`.
 
-## Recolección en Cloudflare y actualización sin recargar
+## Servicio asíncrono en Cloudflare y actualización sin recargar
 
-El Worker `atlas-sismico-panama-datos` consulta el catálogo oficial **cada diez minutos**, con hasta tres intentos para errores transitorios y timeout de 25 segundos por intento. Conserva catálogo y diagnóstico juntos en Workers KV. Una descarga fallida mantiene los últimos eventos válidos y su fecha real, publica el error y deja la ejecución programada marcada como fallida. Ninguna ruta pública permite iniciar una descarga ni escribir datos.
+El Worker `atlas-sismico-panama-datos` mantiene una copia del catálogo en un **Durable Object con SQLite**. Una alarma persistente consulta la fuente aproximadamente un minuto después de terminar cada descarga. No utiliza cron de GitHub ni cron de Cloudflare. La alarma continúa aunque no haya visitantes; tras una interrupción, la próxima alarma y la copia guardada permiten recuperarse.
 
-API pública: `https://atlas-sismico-panama-datos.ptydev.workers.dev/sismos.json`. El diagnóstico está en `/diagnostico.json`. La API permite lectura CORS, `HEAD`, preflight y peticiones condicionales `If-None-Match`; una versión sin cambios devuelve `304`, sin reenviar el catálogo.
+Cuando detecta cambios en los eventos, envía el catálogo por **WebSocket** a las pestañas conectadas. Si solo cambió la fecha de descarga o el estado del servicio, envía un mensaje ligero. No vuelve a dibujar el mapa por una versión idéntica. La conexión utiliza la API de hibernación de Cloudflare para no mantener el objeto ejecutándose mientras espera.
 
-La pestaña visible comprueba la versión **cada minuto** con `fetch()`. Si cambia el catálogo, actualiza mapa, lista y último evento sin recargar la página. Conserva filtros, zoom 2D y selección por fecha/hora/coordenadas; los IDs de fila pueden cambiar. La ficha abierta recibe las correcciones del evento. Una versión idéntica no redibuja marcadores. `uirevision` mantiene la cámara de Plotly entre actualizaciones. La comprobación se pausa con la pestaña oculta y se retoma al regresar; también reintenta al recuperar conexión. Si la API falla, intenta leer `sismos.json` como respaldo y nunca retrocede a una fecha anterior a la que ya muestra.
+- Datos: `https://atlas-sismico-panama-datos.ptydev.workers.dev/sismos.json`
+- Diagnóstico: `https://atlas-sismico-panama-datos.ptydev.workers.dev/diagnostico.json`
+- Canal: `wss://atlas-sismico-panama-datos.ptydev.workers.dev/live`
 
-Esto detecta cambios mediante consultas periódicas, no mediante notificaciones push de la fuente. El intervalo observable depende de la publicación oficial, el cron, la propagación de KV y la comprobación del navegador. No ofrece actualización instantánea. Cloudflare advierte que los cambios de cron pueden tardar hasta 15 minutos en propagarse y KV tiene consistencia eventual.
+Las rutas públicas son de lectura. Ningún visitante puede iniciar una descarga oficial ni modificar datos. La API HTTP permite CORS, `HEAD` y `If-None-Match` con respuesta `304`. KV conserva la copia anterior como semilla de migración; la copia activa y el diagnóstico se guardan juntos en SQLite.
 
-Para desplegar cambios del colector, con una sesión autorizada de Cloudflare:
+La página conserva filtros, zoom 2D, selección por fecha/hora/coordenadas y la ficha abierta cuando llegan datos nuevos. Los IDs de fila pueden cambiar. Una revisión actualiza la ficha del mismo evento. Un nuevo registro muestra un aviso con la opción de abrirlo; no mueve automáticamente el mapa ni restablece filtros. `uirevision` mantiene la cámara de Plotly entre actualizaciones.
+
+Una pestaña oculta cierra el canal; al volver, se conecta y recibe la versión vigente. La reconexión automática tiene espera progresiva hasta 30 segundos. Si el canal falla, la pestaña visible consulta la copia HTTP cada minuto y usa el archivo del sitio como respaldo. Una copia más antigua nunca sustituye datos más recientes.
+
+**La entrega al navegador es asíncrona, pero la fuente oficial publica HTML y no ofrece aquí un canal push.** El servicio debe comprobarla centralmente. La demora depende de cuándo publique el IGC–UP, de la próxima consulta y de su duración; no se garantiza información instantánea ni un sistema de alerta temprana.
+
+Ante fallos transitorios, cada consulta tiene hasta tres intentos, timeout de 25 segundos y pausas de 2 y 4 segundos. Un HTTP 403 o HTML inválido no provoca una ráfaga de reintentos. Si la consulta sigue fallando, conserva la copia válida y su fecha real; aumenta la espera entre consultas a 2, 4, 8 y hasta 10 minutos. El canal informa del fallo y el diagnóstico muestra la próxima consulta prevista.
+
+Para desplegar el servicio con una sesión autorizada de Cloudflare:
 
 ```powershell
-cd cloudflare
-npx.cmd wrangler deploy
+npx.cmd wrangler deploy --config cloudflare/wrangler.jsonc
 ```
 
-La configuración incluida corresponde al Worker y namespace KV de este proyecto. Al instalarlo en otra cuenta, crea tu propio namespace y cambia `account_id`, `kv_namespaces[].id` y las URLs de `assets/config.js`. No publiques tokens ni archivos `.dev.vars`. `node --test cloudflare/worker.test.mjs` valida extracción, reintentos, conservación de datos y API condicional.
+La configuración corresponde a esta cuenta, Worker, Durable Object y namespace KV. En otra cuenta, cambia `account_id`, crea tu propio namespace KV o retira la semilla, y ajusta las URLs en `assets/config.js`. No publiques tokens ni `.dev.vars`. GitHub Actions publica el sitio estático; un cambio del servicio requiere desplegar también Wrangler.
 
-El cron hace 144 sincronizaciones diarias y una escritura KV por ejecución. Cada comprobación de una pestaña consume una petición al Worker y una lectura KV, incluso si devuelve `304`. Los límites gratuitos publicados son 100.000 peticiones Worker/día, 100.000 lecturas KV/día y 1.000 escrituras KV/día, compartidos con los demás usos de la cuenta. No se ha activado un plan de pago. Referencias: [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/), [Workers KV](https://developers.cloudflare.com/kv/concepts/how-kv-works/), [límites Workers](https://developers.cloudflare.com/workers/platform/limits/) y [límites KV](https://developers.cloudflare.com/kv/platform/limits/).
+No se ha activado un plan de pago. El consumo depende de consultas, almacenamiento y conexiones; no es ilimitado. La configuración limita a 1.000 conexiones simultáneas al canal y permite recuperación HTTP. Referencias: [WebSocket con hibernación](https://developers.cloudflare.com/durable-objects/best-practices/websockets/), [alarmas persistentes](https://developers.cloudflare.com/durable-objects/api/alarms/) y [precios y límites de Durable Objects](https://developers.cloudflare.com/durable-objects/platform/pricing/).
 
 ## Estado de la fuente y limitaciones
 
@@ -50,8 +59,9 @@ El cron anterior de GitHub se retiró: la actualización de datos ya no depende 
 | `index.html` | Atlas 2D/3D y fichas emergentes, responsive, independiente de paquetes externos |
 | `sismos.json` | Copia de respaldo del sitio; el catálogo activo se obtiene de Cloudflare |
 | `diagnostico.json` | Copia de diagnóstico para distribución; el panel lee el registro activo de Cloudflare |
-| `assets/config.js` | URLs públicas del colector y tiempo de comprobación |
-| `cloudflare/worker.mjs`, `cloudflare/wrangler.jsonc` | Recolección programada, KV y API de lectura condicional |
+| `assets/config.js` | URLs públicas HTTP/WebSocket y tiempo de recuperación HTTP |
+| `cloudflare/worker.mjs`, `cloudflare/wrangler.jsonc` | Servicio con alarmas, SQLite, WebSocket y API de lectura condicional |
+| `assets/map-render.js`, `assets/map-live.js`, `assets/map-live.css` | Etiquetas, tamaño por magnitud, gestos táctiles, avisos y canal en vivo |
 | `assets/diagnostico.js`, `assets/diagnostico.css` | Panel de diagnóstico y consulta pública del historial de Actions |
 | `scripts/actualizar_sismos.py` | Descarga del HTML y extracción de la tabla a JSON |
 | `scripts/generar_diagnostico.py` | Genera el registro público de descarga, sin credenciales |
@@ -59,7 +69,7 @@ El cron anterior de GitHub se retiró: la actualización de datos ya no depende 
 
 ### Controles para visitantes
 
-Los visitantes pueden pulsar un círculo del mapa 2D, un punto de 3D, o un evento de la lista para mostrar la ficha, cerrarla con × o `Escape`, copiar coordenadas, abrir el registro original, filtrar por magnitud/profundidad/fecha y exportar CSV o GeoJSON. No pueden forzar una descarga de la fuente oficial: solo el cron de Cloudflare hace la recolección. El temporizador del navegador comprueba la copia guardada.
+Los visitantes pueden pulsar un círculo del mapa 2D, un punto de 3D, o un evento de la lista para mostrar la ficha, cerrarla con × o `Escape`, copiar coordenadas, abrir el registro original, filtrar por magnitud/profundidad/fecha y exportar CSV o GeoJSON. No pueden forzar una descarga de la fuente oficial: la realiza el servicio central. El canal entrega cambios y el temporizador HTTP comprueba la copia guardada si se pierde la conexión.
 
 ## Diagnóstico de actualización
 
@@ -82,4 +92,4 @@ La franja «Última alerta» muestra el evento más reciente de todo el catálog
 
 En móviles, la alerta y el mapa aparecen primero. Los filtros se abren con «Filtros» y los detalles se consultan tocando un círculo o un evento de la lista. Las etiquetas y marcadores se ajustan al tamaño de pantalla.
 
-El último registro lleva un pulso suave y una etiqueta con su magnitud en el mapa 2D; el pulso se desactiva si el dispositivo solicita movimiento reducido. En computadora, pasar el cursor ofrece un resumen y hacer clic abre la ficha. En móvil, tocar un círculo o un evento abre una ficha al pie de la pantalla. La imagen social es una captura fija de ejemplo, independiente de las actualizaciones del catálogo.
+El último registro lleva una etiqueta con magnitud y antigüedad en el mapa 2D. El pulso suave solo aparece con datos verificados para un evento de los últimos 30 minutos o durante 90 segundos al recibir un nuevo registro. Un registro antiguo no parpadea; el movimiento reducido desactiva animaciones. El tamaño y el color representan magnitud. Las etiquetas evitan controles y se limitan en móvil para mantener legibilidad. En computadora, pasar el cursor ofrece un resumen y hacer clic abre la ficha. En móvil, tocar un círculo o un evento abre una ficha al pie de la pantalla. Si varios epicentros quedan demasiado juntos, el toque ofrece una lista para escoger el registro. El mapa permite arrastrar con un dedo, acercar con dos y usar botones de zoom de 44 px; el resto de la página conserva el desplazamiento normal. El botón «M · Magnitudes» reduce etiquetas secundarias sin ocultar el último registro o la selección. La imagen social es una captura fija de ejemplo, independiente de las actualizaciones del catálogo.

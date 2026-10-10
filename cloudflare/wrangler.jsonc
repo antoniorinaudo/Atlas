@@ -4,7 +4,9 @@
   "compatibility_date": "2026-10-10",
   "workers_dev": true,
   "account_id": "5d12f6ce42fe16bcf17b68f4ba3fbc79",
-  "triggers": { "crons": ["*/10 * * * *"] },
+  "triggers": { "crons": [] },
+  "durable_objects": { "bindings": [{ "name": "ATLAS_LIVE", "class_name": "AtlasLive" }] },
+  "migrations": [{ "tag": "v1-live", "new_sqlite_classes": ["AtlasLive"] }],
   "kv_namespaces": [{ "binding": "ATLAS_KV", "id": "67c0507d24db437da4e9f8aaaa92f0e2" }],
   "observability": { "enabled": true },
   "logpush": false
