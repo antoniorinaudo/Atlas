@@ -186,6 +186,6 @@ export class AtlasLive {
     // Clients cannot trigger harvesting, change settings or publish data.
     if(message==='ping')socket.send(JSON.stringify({type:'pong'}));else socket.close(1008,'Canal de solo lectura');
   }
-  async webSocketClose(socket,code,reason) {socket.close(code,reason);}
+  async webSocketClose(socket,code,reason) {try{socket.close(code===1005||code===1006||code===1015?1000:code,reason);}catch{}}
   async webSocketError(socket) {try{socket.close(1011,'Reconectar');}catch{}}
 }

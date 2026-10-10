@@ -24,7 +24,8 @@ export async function sendPush(subscription,payload,env,fetcher=fetch){
  if(!ready(env))throw Error('Servicio push no configurado');
  const request=await buildPushPayload({data:JSON.stringify(payload),options:{ttl:1800,urgency:'normal'}},subscription,{subject:env.VAPID_SUBJECT||ORIGIN+'/Atlas/',publicKey:env.VAPID_PUBLIC_KEY,privateKey:env.VAPID_PRIVATE_KEY});
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
- try{const result=await fetcher(subscription.endpoint,{...request,redirect:'error',signal:controller.signal});await result.body?.cancel();return result.status;}
+ // Workers supports manual/follow only. Refuse redirects without forwarding VAPID credentials.
+ try{const result=await fetcher(subscription.endpoint,{...request,redirect:'manual',signal:controller.signal});await result.body?.cancel();return result.status;}
  finally{clearTimeout(timer);}
 }
 export async function pushAPI(request,sql,env,fetcher=fetch){
@@ -70,7 +71,11 @@ export async function pushAPI(request,sql,env,fetcher=fetch){
    return response({ok:true,accepted:true},200,allowedOrigin);
   }
   return response({error:'Ruta no encontrada'},404,allowedOrigin);
- }catch(error){return response({error:/subscription|suscripci|Clave|Magnitud|URL|Invalid key/i.test(error.message)?'Suscripción o magnitud inválida':'No se pudo completar la operación push'},400,allowedOrigin);}
+ }catch(error){
+  console.error(JSON.stringify({event:'push-error',name:error.name,reason:String(error.message).replace(/https?:\/\/\S+/g,'[proveedor]').replace(/[A-Za-z0-9_-]{35,}/g,'[dato omitido]').slice(0,240)}));
+  const invalid=path==='/push/subscribe'&&(/subscription|suscripci|Clave|Magnitud|URL|Invalid key|Servicio push no permitido/i.test(error.message)||error.name==='DataError');
+  return response({error:invalid?'Suscripción o magnitud inválida':'No se pudo completar el envío. Reintenta más tarde.'},invalid?400:503,allowedOrigin);
+ }
 }
 export function newPublishedEvents(before,after,now=Date.now()){
  if(!before?.length)return [];

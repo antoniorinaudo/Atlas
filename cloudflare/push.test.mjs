@@ -37,6 +37,8 @@ test('Cifra el mensaje y firma VAPID; reintenta fallos y elimina suscripciones c
  const{sql,env,subscription,req,signing}=await setup();let captured;
  assert.equal(await sendPush(subscription,{title:'prueba'},env,async(url,payload)=>{captured=payload;return new Response('',{status:201});}),201);
  assert.equal(captured.headers['content-encoding'],'aes128gcm');assert(!Buffer.from(captured.body).includes(Buffer.from('prueba')));
+ assert.equal(captured.redirect,'manual');
+ assert.equal(await sendPush(subscription,{title:'prueba'},env,async(url,payload)=>{assert.equal(payload.redirect,'manual');return new Response(null,{status:302,headers:{Location:'https://other.test'}});}),302);
  const jwt=captured.headers.authorization.match(/t=([^,]+)/)[1],parts=jwt.split('.');const claims=JSON.parse(Buffer.from(parts[1],'base64url'));
  assert.equal(claims.aud,'https://fcm.googleapis.com');assert(await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},signing.publicKey,Buffer.from(parts[2],'base64url'),Buffer.from(parts[0]+'.'+parts[1])));
  await pushAPI(req('subscribe',{subscription,minMagnitude:4}),sql,env);const now=Date.parse('2026-10-10T17:05:00Z');await queueNewEvents(sql,[event()],[event(),event('12:01:00',5)],now);

@@ -49,4 +49,6 @@ test('API solo lee copia; ETag/304, preflight, HEAD y rutas prohibidas',async()=
 test('Mensajes de clientes no disparan descargas ni escrituras',async()=>{
  const service=new AtlasLive(context(),{});await service.ready;const sent=[],closed=[];const socket={send:x=>sent.push(JSON.parse(x)),close:(...x)=>closed.push(x)};
  await service.webSocketMessage(socket,'ping');assert.equal(sent[0].type,'pong');await service.webSocketMessage(socket,'refresh');assert.equal(closed[0][0],1008);assert.equal(service.snapshot,null);
+ for(const code of [1005,1006,1015]){await service.webSocketClose(socket,code,'');assert.equal(closed.at(-1)[0],1000);}
+ await service.webSocketClose(socket,1001,'Salir');assert.deepEqual(closed.at(-1),[1001,'Salir']);
 });
