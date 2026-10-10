@@ -1,3 +1,4 @@
+import {initPush,pushAPI,queueNewEvents,dispatchPush} from './push.mjs';
 // Read-only public API. One Durable Object harvests and broadcasts changes.
 export const SOURCE = 'https://sismosgeociencias.up.ac.pa/';
 export const KEY = 'catalog-v1';
@@ -83,6 +84,7 @@ export async function pack(catalog,diagnostic) {
 export default {
   async fetch(request,env) {
     const path=new URL(request.url).pathname;
+    if(['/push/public-key','/push/subscribe','/push/unsubscribe','/push/test'].includes(path))return env.ATLAS_LIVE.getByName('panama').fetch(request);
     if(!['/sismos.json','/diagnostico.json','/live'].includes(path))return jsonResponse({error:'Ruta no encontrada'},404);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:publicHeaders()});
     if(!['GET','HEAD'].includes(request.method))return jsonResponse({error:'API de solo lectura'},405);
@@ -103,6 +105,7 @@ export class AtlasLive {
     this.ctx=ctx;this.env=env;this.snapshot=null;this.inFlight=null;
     this.ready=ctx.blockConcurrencyWhile(async()=>{
       ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS atlas_state (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
+      initPush(ctx.storage.sql);
       const row=ctx.storage.sql.exec('SELECT value FROM atlas_state WHERE id = 1').toArray()[0];
       if(row)this.snapshot=JSON.parse(row.value);
       else if(env.ATLAS_KV){
@@ -144,16 +147,24 @@ export class AtlasLive {
     }
     const delay=diagnostic.status==='success'?60000:Math.min(600000,60000*2**Math.min(4,diagnostic.failure_count));
     diagnostic.next_check_at_utc=new Date(Date.now()+delay).toISOString();
+    const queued=diagnostic.status==='success'?await queueNewEvents(this.ctx.storage.sql,old?.catalog?.events,catalog?.events||[]):0;
     const snapshot={...await pack(catalog,diagnostic),revision};
     this.save(snapshot);
     await this.ctx.storage.setAlarm(Date.now()+delay);
     const changed=revision!==old?.revision;
     this.broadcast(changed&&catalog?{type:'catalog',etag:snapshot.etag,revision,payload:{...catalog,collector:diagnostic}}:{type:'heartbeat',etag:snapshot.etag,revision,collector:diagnostic});
+    const push=await dispatchPush(this.ctx.storage.sql,this.env);
+    if(queued||push.accepted||push.failed||push.expired||push.pending){
+      const updated={...diagnostic,push:{queued,...push}};this.save({...await pack(catalog,updated),revision});
+      this.broadcast({type:'heartbeat',etag:this.snapshot.etag,revision,collector:updated});
+      console.log(JSON.stringify({event:'push',queued,...push}));
+    }
     console.log(JSON.stringify({event:'alarm',status:diagnostic.status,changed,event_count:diagnostic.event_count,next_check_at_utc:diagnostic.next_check_at_utc,logs:diagnostic.logs}));
   }
   async fetch(request) {
     await this.ready;
     const path=new URL(request.url).pathname;
+    if(path.startsWith('/push/'))return pushAPI(request,this.ctx.storage.sql,this.env);
     if(path==='/live'){
       if(request.headers.get('Upgrade')?.toLowerCase()!=='websocket')return jsonResponse({error:'Se requiere WebSocket'},426);
       if(this.ctx.getWebSockets().length>=1000)return jsonResponse({error:'Conexiones ocupadas; usar API de lectura'},429);

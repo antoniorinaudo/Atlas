@@ -29,7 +29,7 @@ jobs:
       - name: Preparar página estática
         run: |
           mkdir -p web
-          cp index.html sismos.json diagnostico.json web/
+          cp index.html sismos.json diagnostico.json manifest.webmanifest sw.js web/
           cp -R assets web/
           touch web/.nojekyll
       - name: Configurar GitHub Pages

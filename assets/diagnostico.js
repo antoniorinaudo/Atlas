@@ -25,7 +25,7 @@
   get('diagnosticDataDetail').textContent=fetched?`${catalog?.event_count??backend?.event_count??'—'} registros · descarga hace ${minutes} min${catalog?.snapshot?' · captura inicial':''}. Leer el archivo correctamente no significa que tenga datos nuevos.`:'Esperando la primera lectura del archivo de datos.';
   get('diagnosticSourceStatus').textContent=backend?.status==='success'?'Descarga oficial correcta':backend?.status==='failure'?'Falló la descarga oficial':'Registro no disponible';
   get('diagnosticSourceDetail').textContent=backend?.checked_at_utc?`${time(backend.checked_at_utc)} (Panamá) · Inicio: ${eventName(backend.event)}. Próxima consulta del servicio: ${time(backend.next_check_at_utc)} (Panamá).${backendIssue?' La consulta actual del registro falló; se muestra la copia leída anteriormente.':''}`:backendIssue||'El registro estará disponible tras el próximo despliegue.';
-  get('diagnosticSourceLog').textContent=Array.isArray(backend?.logs)?backend.logs.map(String).join('\n'):backendIssue||'Sin registro publicado.';
+  get('diagnosticSourceLog').textContent=Array.isArray(backend?.logs)?backend.logs.map(String).join('\n')+(backend.push?'\nPush: '+backend.push.queued+' en cola · '+backend.push.accepted+' aceptados por el proveedor · '+backend.push.failed+' fallidos · '+backend.push.expired+' suscripciones caducadas · '+backend.push.pending+' pendientes.':''):backendIssue||'Sin registro publicado.';
   const note=get('diagnosticSummary');
   const automatic=runs?.find(r=>r.event==='schedule');
   if(backend?.collector==='cloudflare'){

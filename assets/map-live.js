@@ -4,7 +4,14 @@
  const log=(level,message)=>window.atlasDiagnostics?.log(level,message);
  const identity=eventIdentity,stamp=e=>e.date+'T'+e.time;
  const newUntil=new Map();let noticeKey=null,pulseActive=false;
- window.atlasMap={labelsVisible:true};
+ window.atlasMap={labelsVisible:true,isGesturing:false,fitView(v){
+  if(!matchMedia('(max-width:630px)').matches)return v;
+  const b=map.getBoundingClientRect();if(!b.width||!b.height)return v;
+  let w=v[2],h=w*b.height/b.width;if(h>900){h=900;w=h*b.width/b.height;}
+  return [v[0]+(v[2]-w)/2,v[1]+(v[3]-h)/2,w,h];
+ }};
+ get('mapOptionsToggle').onclick=()=>{const panel=document.querySelector('.map-panel'),open=panel.classList.toggle('mobile-options-open');get('mapOptionsToggle').setAttribute('aria-expanded',String(open));renderMap();};
+ setView(window.atlasMap.fitView(state.view),'Pacífico central');
  get('mapLabelToggle').onclick=()=>{window.atlasMap.labelsVisible=!window.atlasMap.labelsVisible;get('mapLabelToggle').setAttribute('aria-pressed',String(window.atlasMap.labelsVisible));renderMap();};
  get('mapGoLatest').onclick=()=>focusCatalogEvent(latestCatalogEvent());
  get('mapNoticeClose').onclick=()=>{notice.hidden=true;get('mapGoLatest').focus({preventScroll:true});};
@@ -32,6 +39,7 @@
   let expired=false;for(const [key,until]of newUntil)if(until<=Date.now()){newUntil.delete(key);expired=true;}
   if(pulseActive!==active||expired){pulseActive=active;renderMap();}
   const ageLabel=document.querySelector('.latest-tag .magnitude-label-detail');if(ageLabel&&latest)ageLabel.textContent=eventAgeLabel(latest);
+  if(latest)get('mobileLatestMeta').textContent=eventAgeLabel(latest)+' · '+latest.depth+' km · '+latest.status;
  }
  setInterval(()=>{if(!document.hidden)updatePulse();},10000);
 
@@ -43,7 +51,7 @@
   const rows=normalizeRows(body.events),accepted={...body,events:rows};
   formatUpdated(accepted.fetched_at_utc||accepted.generated_at_utc);
   if(displayCatalog(accepted,'Servicio en vivo · Cloudflare · IGC–UP')){
-   lastBody=accepted;cachedCatalogs.set(DATA_URL,{etag,body:accepted});updatePulse();
+   lastBody=accepted;cachedCatalogs.set(DATA_URL,{etag,body:accepted});updatePulse();window.atlasPush?.handleDeepLink();
   }
  }
  function reconnect(){
@@ -82,12 +90,13 @@
  setInterval(()=>{if(!document.hidden&&socket?.readyState===WebSocket.OPEN&&!window.atlasStream.healthy()){log('warning','Canal sin respuesta; reconectando.');disconnect();connect();}},30000);
  connect();updatePulse();
 
- // Pointer gestures work over the SVG and its labels; page scrolling outside stays native.
- const pointers=new Map();let gesture=null,moved=false,suppressUntil=0,lastPointer='mouse',frame=0,tappedTag=null;
+ // Keep SVG nodes stable while a finger is down; touch targets survive the whole gesture.
+ const surface=get('flatMap'),pointers=new Map();let gesture=null,moved=false,suppressUntil=0,lastPointer='mouse',tappedTag=null;
  const center=points=>({x:points.reduce((s,p)=>s+p.x,0)/points.length,y:points.reduce((s,p)=>s+p.y,0)/points.length});
  const distance=points=>points.length>1?Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y):0;
- function begin(){const points=[...pointers.values()];gesture={view:[...state.view],points,center:center(points),distance:distance(points),bounds:map.getBoundingClientRect()};}
- function redraw(){map.setAttribute('viewBox',state.view.join(' '));if(!frame)frame=requestAnimationFrame(()=>{frame=0;renderMap();});}
+ const isControl=target=>target.closest('button,a,input,select');
+ function begin(){const points=[...pointers.values()];gesture={view:[...state.view],center:center(points),distance:distance(points),bounds:map.getBoundingClientRect()};window.atlasMap.isGesturing=true;surface.classList.add('dragging');hideMapHover();}
+ function redraw(){map.setAttribute('viewBox',state.view.join(' '));}
  function candidatesAt(event,touch){
   const candidates=[];
   for(const node of map.querySelectorAll('.epicenter')){
@@ -96,20 +105,8 @@
   }
   return candidates.sort((a,b)=>a.d-b.d);
  }
- map.addEventListener('pointerdown',event=>{
-  if(event.button!==0)return;lastPointer=event.pointerType;pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
-  if(pointers.size===1){moved=false;tappedTag=event.target.closest('.magnitude-tag')?.dataset.id||null;}else{moved=true;tappedTag=null;}
-  begin();map.setPointerCapture(event.pointerId);hideMapHover();
- });
- map.addEventListener('pointermove',event=>{
-  if(!pointers.has(event.pointerId)||!gesture){
-   if(event.pointerType!=='touch'){
-    const tag=event.target.closest('.magnitude-tag'),id=tag?+tag.dataset.id:candidatesAt(event,false)[0]?.id;
-    const e=EVENTS.find(e=>e.id===id);if(e)showMapHover(e);else hideMapHover();
-   }
-   return;
-  }
-  pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});const points=[...pointers.values()],c=center(points),g=gesture;
+ function advance(){
+  const points=[...pointers.values()],c=center(points),g=gesture;if(!g)return;
   if(!moved&&Math.hypot(c.x-g.center.x,c.y-g.center.y)<5)return;moved=true;
   const [a,b,w,h]=g.view,oldScale=Math.max(g.bounds.width/w,g.bounds.height/h);
   const ratio=points.length>1&&g.distance>0?g.distance/Math.max(1,distance(points)):1;
@@ -117,12 +114,40 @@
   const nw=w*factor,nh=h*factor,newScale=Math.max(g.bounds.width/nw,g.bounds.height/nh);
   const bx=g.bounds.left+g.bounds.width/2,by=g.bounds.top+g.bounds.height/2;
   const anchorX=a+w/2+(g.center.x-bx)/oldScale,anchorY=b+h/2+(g.center.y-by)/oldScale;
-  state.view=[Math.max(0,Math.min(1600-nw,anchorX-(c.x-bx)/newScale-nw/2)),Math.max(0,Math.min(900-nh,anchorY-(c.y-by)/newScale-nh/2)),nw,nh];
-  event.preventDefault();redraw();
+  state.view=[Math.max(-nw*.35,Math.min(1600-nw*.65,anchorX-(c.x-bx)/newScale-nw/2)),Math.max(-nh*.35,Math.min(900-nh*.65,anchorY-(c.y-by)/newScale-nh/2)),nw,nh];redraw();
+ }
+ function finish(){window.atlasMap.isGesturing=false;surface.classList.remove('dragging');gesture=null;renderMap();}
+ // Touch Events also cover Safari's SVG pointer-capture differences.
+ surface.addEventListener('touchstart',event=>{
+  if(isControl(event.target))return;event.preventDefault();lastPointer='touch';
+  if(!pointers.size){moved=false;tappedTag=event.target.closest('.magnitude-tag')?.dataset.id||null;}
+  for(const t of event.changedTouches)pointers.set(t.identifier,{x:t.clientX,y:t.clientY});
+  if(pointers.size>1){moved=true;tappedTag=null;}begin();
+ },{passive:false});
+ surface.addEventListener('touchmove',event=>{
+  if(!pointers.size)return;event.preventDefault();
+  for(const t of event.changedTouches)if(pointers.has(t.identifier))pointers.set(t.identifier,{x:t.clientX,y:t.clientY});advance();
+ },{passive:false});
+ function endTouch(event){
+  if(!pointers.size)return;event.preventDefault();const touch=event.changedTouches[0],tap=!moved&&event.type==='touchend'&&pointers.size===1;
+  for(const t of event.changedTouches)pointers.delete(t.identifier);
+  if(pointers.size)begin();else{finish();if(tap)handleTap({target:event.target,clientX:touch.clientX,clientY:touch.clientY,pointerType:'touch'},true);}
+  suppressUntil=Date.now()+500;
+ }
+ surface.addEventListener('touchend',endTouch,{passive:false});surface.addEventListener('touchcancel',endTouch,{passive:false});
+ surface.addEventListener('pointerdown',event=>{
+  if(event.pointerType==='touch'||event.button!==0||isControl(event.target))return;lastPointer=event.pointerType;
+  pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});moved=false;tappedTag=event.target.closest('.magnitude-tag')?.dataset.id||null;begin();surface.setPointerCapture(event.pointerId);
  });
- function end(event){if(!pointers.has(event.pointerId))return;if(moved||event.type==='pointercancel')suppressUntil=Date.now()+450;pointers.delete(event.pointerId);if(pointers.size)begin();else gesture=null;}
- for(const name of ['pointerup','pointercancel','lostpointercapture'])map.addEventListener(name,end);
- map.addEventListener('pointerleave',()=>{if(!pointers.size)hideMapHover();});
+ surface.addEventListener('pointermove',event=>{
+  if(event.pointerType==='touch')return;
+  if(!pointers.has(event.pointerId)||!gesture){const tag=event.target.closest('.magnitude-tag'),id=tag?+tag.dataset.id:candidatesAt(event,false)[0]?.id,e=EVENTS.find(e=>e.id===id);if(e&&!isControl(event.target))showMapHover(e);else hideMapHover();return;}
+  pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});event.preventDefault();advance();
+ });
+ function endPointer(event){if(event.pointerType==='touch'||!pointers.has(event.pointerId))return;const tap=!moved&&event.type==='pointerup';pointers.delete(event.pointerId);if(tap)handleTap(event);suppressUntil=Date.now()+500;finish();}
+ for(const name of ['pointerup','pointercancel','lostpointercapture'])surface.addEventListener(name,endPointer);
+ surface.addEventListener('pointerleave',()=>{if(!pointers.size)hideMapHover();});
+ surface.addEventListener('click',event=>{if(isControl(event.target))return;if(Date.now()<suppressUntil){event.preventDefault();return;}handleTap(event);});
  map.addEventListener('wheel',event=>{event.preventDefault();zoom(event.deltaY>0?1.13:.88);},{passive:false});
  map.addEventListener('keydown',event=>{if(event.target!==map)return;if(['+','=','-','Home','Escape'].includes(event.key)){event.preventDefault();if(event.key==='Home')focusZone();else if(event.key==='Escape')closeEventPopup();else zoom(event.key==='-'?1.38:.72);}});
  get('nearbyClose').onclick=()=>dialog.close();
@@ -139,11 +164,10 @@
   }
   dialog.showModal();
  }
- map.addEventListener('click',event=>{
-  if(Date.now()<suppressUntil){event.preventDefault();return;}
+ function handleTap(event,fromTouch=false){
   const tag=event.target.closest('.magnitude-tag');if(tag||tappedTag){const id=+(tag?.dataset.id||tappedTag);tappedTag=null;selectEvent(id,false,true);return;}
   const touch=(event.pointerType||lastPointer)==='touch',candidates=candidatesAt(event,touch);
   if(touch&&candidates.length>1&&candidates[1].d-candidates[0].d<6&&Math.hypot(candidates[0].cx-candidates[1].cx,candidates[0].cy-candidates[1].cy)<18){chooseNearby(candidates);return;}
   if(candidates.length)selectEvent(candidates[0].id,false,true);else closeEventPopup();
- });
+ }
 })();

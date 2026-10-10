@@ -1,0 +1,4 @@
+{
+ "id":"./","name":"Atlas Sísmico Panamá","short_name":"Atlas Sísmico","lang":"es-PA","start_url":"./?app=1","scope":"./","display":"standalone","background_color":"#0b202d","theme_color":"#102b38","description":"Mapa del catálogo IGC–UP y avisos informativos de nuevos registros sísmicos.",
+ "icons":[{"src":"assets/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"assets/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]
+}

@@ -9,6 +9,7 @@ function markerRadiusPx(mag,mobile=matchMedia('(max-width:630px)').matches){
  return 5+Math.pow(Math.max(0,Math.min(1,(mag-1.5)/5.5)),1.3)*(mobile?9:11);
 }
 function renderMap(){
+ if(window.atlasMap?.isGesturing)return;
  const svg=$('geoMap'),bounds=svg.getBoundingClientRect();if(!bounds.width||!bounds.height)return;
  const mobile=matchMedia('(max-width:630px)').matches,k=Math.max(bounds.width/state.view[2],bounds.height/state.view[3],.01);
  svg.setAttribute('viewBox',state.view.join(' '));

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@block65/webcrypto-web-push": "2.0.0"
+  }
+}
