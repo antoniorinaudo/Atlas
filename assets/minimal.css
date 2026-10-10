@@ -4,6 +4,10 @@ html,body{overflow-x:clip;overflow-y:visible}body{height:auto;min-height:100%}
 .map-panel,.side{scroll-margin-top:calc(var(--atlas-header-height,78px) + 12px)}
 .main-grid{margin-top:12px}.header-latest.source-unverified{border-color:#bf985d}.header-latest.source-unverified small{color:#f2cb8d}
 .mini-toast{pointer-events:none}
+.header-latest{position:relative}.header-snake{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}.header-snake rect{stroke:var(--latest-accent,#a0f1d8);stroke-width:2;stroke-linecap:round;stroke-dasharray:16 84;animation:header-snake-lap 4s linear infinite;filter:drop-shadow(0 0 3px var(--latest-accent,#a0f1d8))}.header-latest:disabled .header-snake{display:none}
+@keyframes header-snake-lap{to{stroke-dashoffset:-100}}
+@media(prefers-reduced-motion:reduce){.header-snake rect{animation:none;stroke-dasharray:none;filter:none}}
+#periodChips .chip:last-child{grid-column:1/-1}
 .header-latest[hidden]{display:none!important}.header-latest{display:flex;align-items:center;flex:1;min-width:0;gap:9px;min-height:34px;padding:5px 9px;border:1px solid #4c837d;border-radius:8px;background:#123b3d;color:#e6fff7;font:inherit;text-align:left;cursor:pointer}.header-latest b{flex:none;color:var(--latest-accent,#a0f1d8);font-size:16px;white-space:nowrap}.header-latest-copy{flex:1;min-width:0}.header-latest-copy small{color:#b6d3d9;font-size:9px}.header-latest-copy span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.header-latest-time{flex:none;font-size:10px;color:#c4dadd}.header-latest-arrow{font-size:17px}.header-latest:focus-visible{outline:2px solid #9affdc;outline-offset:2px}
 .shell>header.latest-in-header .syncbar{display:none}
 .shell>header{min-height:62px;padding:8px 20px;gap:12px;flex-wrap:nowrap}
@@ -47,6 +51,6 @@ html,body{overflow-x:clip;overflow-y:visible}body{height:auto;min-height:100%}
  .right-side .event-list-heading{display:none}.intro{display:none}
 }
 @media(max-width:850px){
- .shell>header .header-latest{position:static;order:1;grid-column:1/-1;grid-row:2;flex-basis:100%;width:100%;min-height:48px;padding:6px 10px;border-radius:8px}.header-latest b{font-size:18px}.header-latest-copy span{font-size:11px}.header-latest-time{font-size:10px}
+ .shell>header .header-latest{position:relative;order:1;grid-column:1/-1;grid-row:2;flex-basis:100%;width:100%;min-height:48px;padding:6px 10px;border-radius:8px}.header-latest b{font-size:18px}.header-latest-copy span{font-size:11px}.header-latest-time{font-size:10px}
 }
 @media(max-width:630px){.main-grid .map-panel{margin-top:8px}}

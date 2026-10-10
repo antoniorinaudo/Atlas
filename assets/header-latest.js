@@ -16,6 +16,10 @@
  }
  button.onclick=()=>focusCatalogEvent(latestCatalogEvent());
  window.atlasHeader={sync};
- new ResizeObserver(()=>document.documentElement.style.setProperty('--atlas-header-height',Math.ceil(header.getBoundingClientRect().height)+'px')).observe(header);
+ const resize=new ResizeObserver(()=>{
+  document.documentElement.style.setProperty('--atlas-header-height',Math.ceil(header.getBoundingClientRect().height)+'px');
+  const border=button.querySelector('.header-snake rect');
+  border.setAttribute('width',Math.max(0,button.clientWidth-2));border.setAttribute('height',Math.max(0,button.clientHeight-2));
+ });resize.observe(header);resize.observe(button);
  sync();
 })();
