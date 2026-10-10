@@ -48,6 +48,7 @@ jobs:
         run: |
           mkdir -p web
           cp index.html sismos.json web/
+          cp -R assets web/
           touch web/.nojekyll
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5

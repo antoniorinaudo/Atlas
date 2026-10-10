@@ -44,3 +44,8 @@ Se reconoce al IGC-UP por la publicación de la información utilizada en este a
 ## Mapa y último evento
 
 La franja «Última alerta» muestra el evento más reciente de todo el catálogo IGC-UP, independientemente de los filtros. Es información del catálogo, no un aviso oficial de emergencia. Su botón abre el evento en el mapa y, si los filtros lo ocultan, los restablece para mostrarlo. El control «Ampliar mapa» permite dedicar todo el ancho al mapa.
+
+
+En móviles, la alerta y el mapa aparecen primero. Los filtros se abren con «Filtros» y los detalles se consultan tocando un círculo o un evento de la lista. Las etiquetas y marcadores se ajustan al tamaño de pantalla.
+
+El último registro lleva un pulso suave y una etiqueta con su magnitud en el mapa 2D; el pulso se desactiva si el dispositivo solicita movimiento reducido. En computadora, pasar el cursor ofrece un resumen y hacer clic abre la ficha. En móvil, tocar un círculo o un evento abre una ficha al pie de la pantalla. La imagen social es una captura fija de ejemplo, independiente de las actualizaciones del catálogo.

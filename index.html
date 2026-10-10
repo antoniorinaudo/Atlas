@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" prefix="og: https://ogp.me/ns#">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -80,7 +80,66 @@ footer{padding:0 24px 20px;line-height:1.7;color:#95adbb}
 @media(max-width:1000px){.main-grid{grid-template-columns:190px minmax(0,1fr);min-height:0}.main-grid.map-expanded{grid-template-columns:minmax(0,1fr)}.right-side{grid-column:1/-1;min-height:350px;max-height:600px}.map-panel{min-height:740px}.view-wrap{min-height:550px}.stats{width:100%;display:grid;grid-template-columns:repeat(4,1fr);overflow:visible}.latest-alert{flex-wrap:wrap;gap:14px}.alert-heading{flex:1}.alert-body{flex-basis:65%;order:2}.alert-action{order:3}.alert-magnitude{border-left:0}.intro h1{font-size:28px}.side{max-height:none}}
 @media(max-width:630px){header{min-height:76px;padding:12px 16px;gap:10px;flex-wrap:wrap}.brand{gap:9px;white-space:normal}.brand-icon{width:36px;height:36px;flex-shrink:0}.brand-copy b{font-size:18px}.brand-copy small{font-size:7px;letter-spacing:1.4px}.source-btn{font-size:9px;padding:8px}.syncbar{margin:10px 12px 0;padding:11px 12px}.sync-state strong{font-size:11px}.sync-state small{font-size:10px}.auto-timing{font-size:9px}.latest-alert{margin:12px 12px 0;padding:16px;border-radius:16px;gap:14px}.alert-symbol{width:35px;height:35px;border-radius:11px}.alert-label{font-size:14px}.alert-caption{font-size:9px;max-width:160px}.alert-magnitude{font-size:29px;padding:0}.alert-body{flex-basis:100%;order:2}.alert-location{font-size:14px}.alert-action{order:3;width:100%;min-height:44px}.intro{padding:20px 16px;gap:16px}.intro h1{font-size:25px;letter-spacing:-.8px}.intro p{font-size:11px;line-height:1.6}.stats{grid-template-columns:repeat(2,1fr);gap:8px}.stat{min-width:0;padding:11px 14px}.stat-value{font-size:23px}.main-grid{display:flex;flex-direction:column;margin:0 12px 18px;gap:14px;min-height:0}.map-panel{min-height:680px;border-radius:17px}.map-toolbar{padding:12px;gap:11px;display:block;overflow:visible}.map-toolbar h2{max-width:none;font-size:13px;margin-bottom:12px}.map-toolbar .toolgroup{overflow:visible;display:flex;flex-wrap:wrap;gap:6px}.toolbtn{font-size:10px;padding:9px 10px;min-height:36px}.view-wrap{min-height:500px}.map-info{left:12px;top:12px;min-width:0;padding:11px 12px;max-width:calc(100% - 76px)}.map-info .large{font-size:15px}.map-info .eyebrow{font-size:8px;letter-spacing:1.5px}.map-info small{font-size:9px}.map-ctrl{right:12px;top:12px}.map-ctrl button{min-width:38px;height:38px}.map-legend{right:12px;bottom:27px}.map-legend .gradient{width:130px}.layer-note{left:12px;right:12px;font-size:8px;line-height:1.4}.bottom-strip{padding:14px 12px;min-height:110px}.strip-title{gap:12px;font-size:10px;align-items:flex-start}.strip-title small{font-size:9px;max-width:140px;text-align:right}.side{max-height:none}.right-side{min-height:420px}.map-expanded .view-wrap{min-height:560px}.main-grid.map-expanded>.side{display:none}footer{padding:0 16px 18px;font-size:10px}}
 
+
+/* Mobile: latest event -> map -> events; filters on demand */
+.mobile-filter-toggle,.mobile-filter-head,.mobile-map-help{display:none}
+@media(max-width:630px){
+ .shell{display:flex;flex-direction:column;gap:0;min-height:100vh}
+ header{order:0;min-height:68px;padding:10px 14px;flex-wrap:nowrap;gap:10px;border-bottom:0}.header-spacer{display:none}.brand{flex:1;min-width:0;gap:9px}.brand-icon{width:32px;height:32px;border-radius:10px}.brand-copy{min-width:0}.brand-copy b{font-size:17px;letter-spacing:-.4px;line-height:1.15}.brand-copy small{display:none}.source-btn{flex-shrink:0;min-height:42px;width:70px;justify-content:center;text-align:center;font-size:10px;padding:7px;line-height:1.5}
+ .latest-alert{order:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;margin:0 12px 12px;padding:12px 14px;border-radius:15px}.alert-heading{gap:9px;grid-column:1;grid-row:1}.alert-symbol{width:30px;height:30px;border-radius:9px}.alert-symbol svg{width:19px;height:19px}.alert-label{font-size:14px}.alert-caption{font-size:10px;max-width:none;margin-top:2px;color:#c5d4d3}.alert-magnitude{grid-column:2;grid-row:1;font-size:29px}.alert-body{grid-column:1/-1;grid-row:2}.alert-location{font-size:14px;line-height:1.35}.alert-meta{font-size:12px;line-height:1.45;margin-top:4px}.alert-freshness{display:none}.alert-action{grid-column:1/-1;grid-row:3;width:100%;min-height:42px;padding:9px 12px;font-size:13px;margin-top:2px}
+ .main-grid,.main-grid.map-expanded{display:contents}
+ .main-grid .map-panel{order:2;margin:0 12px 12px;min-height:0;flex:none;border-radius:16px}
+ .map-toolbar{padding:12px;display:flex;align-items:center;gap:10px;min-height:64px;flex-wrap:wrap}.map-toolbar h2{margin:0;font-size:15px;max-width:none;flex:1;min-width:145px}.map-toolbar .toolgroup{display:contents}.toolbtn{font-size:13px;padding:10px 12px;min-height:44px}.map-toolbar #bMap,.map-toolbar #b3D{flex:1;order:3;max-width:calc(50% - 5px)}.map-toolbar #bMap{font-size:0}.map-toolbar #bMap:after{content:'Mapa 2D';font-size:13px}.map-toolbar #b3D{font-size:0}.map-toolbar #b3D:after{content:'Profundidad 3D';font-size:13px}.map-toolbar #bFocus,.map-toolbar #bRegional,.map-toolbar #expandMap{display:none}
+ .mobile-filter-toggle{display:block;order:1;min-height:44px;border:1px solid #48737d;border-radius:10px;padding:9px 12px;background:#183947;color:#dcf5f5;font-size:13px;font-weight:700}.mobile-filter-toggle[aria-expanded=true]{background:#285d62;border-color:#85d8cb}
+ .view-wrap,.map-expanded .view-wrap{min-height:0;height:clamp(345px,52svh,470px);flex:none}
+ .map-info{left:12px;top:12px;max-width:calc(100% - 78px);padding:10px 12px;border-radius:11px;min-width:0}.map-info .eyebrow{display:none}.map-info .large{font-size:14px;margin:0}.map-info small{display:none}
+ .map-ctrl{right:12px;top:12px;gap:7px}.map-ctrl button{height:44px;min-width:44px;font-size:22px;border-radius:11px}.map-legend{right:12px;bottom:14px;padding:10px 12px}.map-legend .ltitle{font-size:10px;letter-spacing:.5px}.map-legend .gradient{width:125px;margin:8px 0 5px}.map-legend .labels{font-size:11px}.layer-note{display:none}.bottom-strip{display:none}
+ .mobile-map-help{display:block;padding:11px 14px;border-top:1px solid #34515f;background:#0f2835;color:#bfd7df;font-size:12px;line-height:1.5}.mobile-map-help b{color:#ebf7f7;font-weight:650}
+ .main-grid>.side:not(.right-side){display:none;order:3;margin:0 12px 12px;border-radius:16px;padding:16px;max-height:none;overflow:visible}.main-grid.mobile-filters-open>.side:not(.right-side){display:block}.mobile-filter-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.mobile-filter-head strong{font-size:17px}.mobile-filter-head button{min-height:44px;border:1px solid #48737d;border-radius:9px;background:#183947;color:#edf8fc;padding:10px 13px;font-size:13px}.main-grid>.side:not(.right-side)>.section-title{display:none}.filter-label{font-size:13px;margin:20px 0 12px}.chip{font-size:13px;min-height:44px}.range{height:6px;margin:15px 0 13px}.range::-webkit-slider-thumb{width:24px;height:24px}.range-ends{font-size:12px}.selectbox,.searchbox{font-size:16px;min-height:46px;padding:11px}.legend-row{font-size:13px}.filters-count{font-size:13px;padding:13px}.filter-foot{font-size:12px}
+ .intro{order:4;padding:0 12px 12px;margin:0;display:block}.intro-left{display:none}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:12px 14px;min-width:0;border-radius:13px}.stat-label{font-size:11px;letter-spacing:.6px;line-height:1.4}.stat-value{font-size:24px}.stat-unit{font-size:12px}
+ .main-grid .right-side{display:flex;order:5;margin:0 12px 12px;min-height:0;max-height:none;border-radius:16px;padding:16px}.right-side .section-title{font-size:15px;text-transform:none;letter-spacing:0;margin:0!important}.right-side .section-title:before{height:16px}.count{font-size:12px}.right-side .featured{display:none}.right-side>.right-top:nth-of-type(2){display:none}.event-list{margin-top:12px;max-height:510px;min-height:0;flex:none;overflow:auto}.event-item{gap:12px;padding:14px 0;min-height:82px}.m-badge{width:48px;height:48px;font-size:20px;position:relative;padding-top:7px}.m-badge:before{content:'M';position:absolute;top:4px;font-size:9px;font-weight:600;color:#aecbd4}.event-item-title{font-size:14px;white-space:normal;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.event-item-sub{font-size:12px;line-height:1.5;color:#aec2cf}.event-item-icon{font-size:22px}.export-area{gap:10px;margin-top:16px}.export-area button{font-size:12px;min-height:44px;padding:10px}
+ .syncbar{order:6;margin:0 12px 12px;padding:14px;border-radius:14px}.sync-state strong{font-size:12px;line-height:1.5}.sync-state small{font-size:12px;line-height:1.5}.auto-timing{font-size:10px}.sync-state{min-width:0;width:100%}
+ footer{order:7;padding:2px 16px 20px;font-size:12px;line-height:1.6;gap:8px}
+ .seismic-popup{left:8px!important;right:8px!important;bottom:8px!important;max-height:calc(100% - 16px);border-radius:14px}.popup-head{padding:10px 13px 0}.popup-close{min-width:44px;min-height:44px}.popup-status{font-size:10px}.popup-core{padding:8px 13px}.popup-area{font-size:15px}.popup-location-caption{font-size:11px}.popup-facts{padding:10px 13px;gap:10px}.popup-fact small{font-size:10px}.popup-fact strong{font-size:12px}.popup-link,.popup-copy{min-height:44px;display:flex;align-items:center;justify-content:center;font-size:12px}.popup-actions{padding:9px 13px 12px}
+}
+
+
+/* Latest event and pointer/touch information */
+.latest-pulse{fill:none;stroke:#a8fff0;transform-box:fill-box;transform-origin:center;pointer-events:none;animation:latest-wave 2.7s ease-out infinite}
+@keyframes latest-wave{0%{transform:scale(.9);opacity:.85}85%,100%{transform:scale(1.85);opacity:0}}
+.latest-tag-bg{fill:#103d45;stroke:#9ae8d7}.latest-tag-text{fill:#e5fff8;font-family:Inter,system-ui,sans-serif;font-weight:800;letter-spacing:.3px}.latest-leader{stroke:#9ae8d7;opacity:.8;pointer-events:none}.latest-list-tag{display:inline-block;width:max-content;color:#a0f3d9;font-size:9px;letter-spacing:.9px;font-weight:800}.event-item.is-latest .m-badge{border-color:#7edaca!important}
+.latest-alert .alert-symbol{animation:alert-beacon 3s ease-in-out infinite}@keyframes alert-beacon{50%{box-shadow:0 0 0 5px #90e7d710}}
+.map-hover{position:absolute;z-index:15;width:245px;max-width:calc(100% - 24px);padding:13px 15px;border:1px solid #73bfbbaa;border-radius:12px;background:#0b2435f5;box-shadow:0 10px 28px #0005;pointer-events:none;color:#e9f7fb}.map-hover[hidden]{display:none}.map-hover strong{display:block;color:#a1f0db;font-size:15px;margin-bottom:6px}.map-hover span{display:block;font-size:12px;line-height:1.4}.map-hover small{display:block;color:#aec7d4;margin-top:6px;font-size:11px;line-height:1.5}
+#popupBackdrop{display:none}
+@media(prefers-reduced-motion:reduce){.latest-pulse,.latest-alert .alert-symbol{animation:none}.latest-pulse{opacity:.7}.seismic-popup{animation:none}}
+@media(max-width:630px){
+ .map-toolbar h2{flex:1 0 calc(100% - 90px);min-width:0;font-size:14px;overflow:visible;white-space:normal}.map-toolbar h2 span:last-child{white-space:normal}.mobile-filter-toggle{flex:0 0 70px}.map-toolbar #bMap,.map-toolbar #b3D{flex:1 0 calc(50% - 5px);max-width:calc(50% - 5px);order:3}.place text{letter-spacing:.25px}
+ .latest-list-tag{font-size:10px}.latest-alert.is-stale .alert-freshness{display:block;font-size:11px;line-height:1.5;color:#f0c09c}
+ .mobile-zone-actions{display:flex;gap:8px;margin-top:10px}.mobile-zone-actions button{flex:1;min-height:44px;background:#163d4c;border:1px solid #426f7a;color:#e3f6f7;border-radius:10px;padding:9px;font-size:12px;font-weight:700}
+ body.popup-open{overflow:hidden}#popupBackdrop:not([hidden]){display:block;position:fixed;inset:0;z-index:45;background:#03101e88;backdrop-filter:blur(2px)}
+ .seismic-popup{position:fixed!important;left:12px!important;right:12px!important;top:auto!important;bottom:12px!important;width:calc(100% - 24px)!important;max-width:440px;margin:0 auto;max-height:75svh;overflow:auto;z-index:50;box-shadow:0 12px 45px #000a}
+}
+
 </style>
+<link rel="canonical" href="https://antoniorinaudo.github.io/Atlas/"/>
+<meta name="description" content="Explora los sismos de Panamá en un mapa interactivo 2D y 3D. Magnitud, ubicación, profundidad y fichas del catálogo del IGC-UP."/>
+<meta property="og:title" content="Atlas Sísmico Panamá"/>
+<meta property="og:description" content="Sismos de Panamá, de un vistazo. Explora el mapa, consulta cada evento y sigue el último registro del catálogo del IGC-UP."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://antoniorinaudo.github.io/Atlas/"/>
+<meta property="og:site_name" content="Atlas Sísmico Panamá"/>
+<meta property="og:locale" content="es_PA"/>
+<meta property="og:image" content="https://antoniorinaudo.github.io/Atlas/assets/atlas-social.png"/>
+<meta property="og:image:secure_url" content="https://antoniorinaudo.github.io/Atlas/assets/atlas-social.png"/>
+<meta property="og:image:type" content="image/png"/>
+<meta property="og:image:width" content="1867"/>
+<meta property="og:image:height" content="832"/>
+<meta property="og:image:alt" content="Mapa de epicentros de Panamá con la ficha de un evento sísmico y sus datos."/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Atlas Sísmico Panamá"/>
+<meta name="twitter:description" content="Mapa interactivo, último sismo y fichas del catálogo oficial IGC-UP."/>
+<meta name="twitter:image" content="https://antoniorinaudo.github.io/Atlas/assets/atlas-social.png"/>
+<meta name="twitter:image:alt" content="Mapa de epicentros de Panamá con ficha de un evento."/>
 </head>
 <body>
 <div class="shell">
@@ -107,7 +166,7 @@ footer{padding:0 24px 20px;line-height:1.7;color:#95adbb}
 <div class="intro"><div class="intro-left"><div class="eyebrow">OBSERVATORIO VISUAL / PANAMÁ</div><h1>La actividad sísmica, de un vistazo.</h1><p id="dateRangeDescription">Epicentros del catálogo IGC–UP · 03–09 de octubre de 2026 · Hora local de Panamá (UTC−5)</p></div>
 <div class="stats"><div class="stat"><div class="stat-label">Eventos visibles</div><div class="stat-value"><span id="sCount">74</span><span class="stat-unit">sismos</span></div></div><div class="stat hot"><div class="stat-label">Mayor magnitud</div><div class="stat-value"><span id="sMax">7.2</span><span class="stat-unit">M</span></div></div><div class="stat"><div class="stat-label">Magnitud media</div><div class="stat-value" id="sAvg">4.0</div></div><div class="stat"><div class="stat-label">Profundidad mediana</div><div class="stat-value"><span id="sDepth">10</span><span class="stat-unit">km</span></div></div></div></div>
 <main class="main-grid">
-<aside class="panel side">
+<aside class="panel side" id="mobileFilters"><div class="mobile-filter-head"><strong>Filtrar sismos</strong><button id="closeMobileFilters" type="button">Volver al mapa ↑</button></div>
 <div class="section-title">Explorar los datos</div>
 <div class="filter-label">PERÍODO</div><div class="chip-group" id="periodChips"><button class="chip active" data-period="all">7 días</button><button class="chip" data-period="today">Hoy</button><button class="chip" data-period="before">Días anteriores</button><button class="chip" data-period="strong">M ≥ 5</button></div>
 <div class="filter-label"><span>MAGNITUD MÍNIMA</span><em id="magValue">M 1.5+</em></div><input class="range" type="range" id="magRange" min="1.5" max="7" step="0.1" value="1.5"/><div class="range-ends"><span>1.5</span><span>≥ 7.0</span></div>
@@ -119,7 +178,7 @@ footer{padding:0 24px 20px;line-height:1.7;color:#95adbb}
 <div class="filters-count"><b id="filteredCount">74</b> registros cumplen los filtros</div>
 <div class="filter-foot">El tamaño y color de cada círculo representan la <b>magnitud</b>, no el área afectada ni la intensidad del movimiento. La ubicación refleja el epicentro informado por el IGC–UP.</div>
 </aside>
-<section class="panel map-panel"><div class="map-toolbar"><h2><span></span><span id="viewTitle">Mapa de epicentros</span></h2><div class="toolgroup"><button class="toolbtn active" id="bMap">◈ Mapa</button><button class="toolbtn" id="b3D">⬡ Subsuelo 3D</button><button class="toolbtn" id="bFocus">◎ Zona activa</button><button class="toolbtn" id="bRegional">▤ Región</button><button class="toolbtn" id="expandMap" type="button" aria-pressed="false">⤢ Ampliar mapa</button></div></div>
+<section class="panel map-panel"><div class="map-toolbar"><h2><span></span><span id="viewTitle">Mapa de epicentros</span></h2><button class="mobile-filter-toggle" id="mobileFilterToggle" type="button" aria-controls="mobileFilters" aria-expanded="false">Filtros</button><div class="toolgroup"><button class="toolbtn active" id="bMap">◈ Mapa</button><button class="toolbtn" id="b3D">⬡ Subsuelo 3D</button><button class="toolbtn" id="bFocus">◎ Zona activa</button><button class="toolbtn" id="bRegional">▤ Región</button><button class="toolbtn" id="expandMap" type="button" aria-pressed="false">⤢ Ampliar mapa</button></div></div>
 <div class="view-wrap">
 <div class="map-bg" id="flatMap">
 <svg id="geoMap" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="group" aria-label="Mapa de Panamá; selecciona un epicentro para ver su información">
@@ -138,9 +197,9 @@ footer{padding:0 24px 20px;line-height:1.7;color:#95adbb}
  <div class="popup-facts"><div class="popup-fact"><small>FECHA · PANAMÁ</small><strong id="popDate">—</strong></div><div class="popup-fact"><small>HORA LOCAL</small><strong id="popTime">—</strong></div><div class="popup-fact"><small>PROFUNDIDAD</small><strong id="popDepth">—</strong></div><div class="popup-fact"><small>COORDENADAS</small><strong id="popCoords">—</strong></div></div>
  <div class="popup-actions"><a class="popup-link" id="popLink" href="https://sismosgeociencias.up.ac.pa/" target="_blank" rel="noopener noreferrer">Ver ficha oficial ↗</a><button class="popup-copy" id="popCopy" type="button">Copiar coords</button></div>
 </article>
-<div class="mini-toast" id="toast"></div>
+<div class="map-hover" id="mapHover" hidden role="tooltip"><strong id="hoverMag"></strong><span id="hoverRegion"></span><small id="hoverFacts"></small></div><div class="mini-toast" id="toast"></div>
 </div>
-<div class="bottom-strip"><div class="strip-title"><span>ACTIVIDAD POR DÍA</span><small>Selecciona una barra para filtrar · últimos 7 días</small></div><div class="bar-chart" id="timeline"></div></div>
+<div class="mobile-map-help"><b>Toca un círculo para ver el sismo.</b><br>Arrastra para moverte y usa + / − para acercar.<br>Color y tamaño del círculo = magnitud.<div class="mobile-zone-actions"><button id="mobileActiveZone" type="button">Zona activa</button><button id="mobileRegional" type="button">Panamá y región</button></div></div><div class="bottom-strip"><div class="strip-title"><span>ACTIVIDAD POR DÍA</span><small>Selecciona una barra para filtrar · últimos 7 días</small></div><div class="bar-chart" id="timeline"></div></div>
 </section>
 <aside class="panel side right-side"><div class="right-top"><div class="section-title" style="margin:3px 0 0">Detalle de eventos</div><span class="count" id="listCount">74 registros</span></div>
 <div class="featured" id="featured"><div class="featured-top"><span class="featured-tag">EVENTO SELECCIONADO</span><span style="color:#9eb1be;font-size:10px" id="selectedStatus">REVISADO</span></div><div class="featured-mag" id="selectedMag">M 7.2</div><div class="featured-area" id="selectedRegion">39 km al noroeste de Tonosí</div><div class="featured-sub" id="selectedInfo">9 oct · 12:56:05 · 4 km de profundidad</div><div class="featured-sub" id="selectedCoord">7.55936° N, 80.75940° O</div><a class="open-link" href="https://sismosgeociencias.up.ac.pa/" id="selectedLink" target="_blank" rel="noopener">Ver registro original ↗</a></div>
@@ -151,6 +210,7 @@ footer{padding:0 24px 20px;line-height:1.7;color:#95adbb}
 </main>
 <footer><div><b>Fuente:</b> Instituto de Geociencias · Universidad de Panamá · <span id="footerSync">Captura inicial: 09/10/2026 18:34 (hora local)</span>.</div><div>Esta visualización no predice sismos ni sustituye información de Protección Civil.</div></footer>
 </div>
+<div id="popupBackdrop" hidden aria-hidden="true"></div>
 <script>/**
 * plotly.js v3.3.1
 * Copyright 2012-2025, Plotly, Inc.
@@ -4048,8 +4108,8 @@ function rgb(e){return e.mag>=6?'#ff7377':e.mag>=5?'#ffac71':e.mag>=4?'#f4d98b':
 function getFiltered(){const q=state.query.toLocaleLowerCase('es'),today=todayPanama();return EVENTS.filter(e=>(state.period==='today'?e.date===today:state.period==='before'?e.date!==today:state.period==='strong'?e.mag>=5:state.period.startsWith('date:')?e.date===state.period.slice(5):true)&&e.mag>=state.minMag&&e.depth<=state.maxDepth&&(state.status==='all'||e.status===state.status)&&(!q||e.region.toLowerCase().includes(q)||e.mag.toString().includes(q)))}
 function eventUrl(e){if(e.sourceUrl){try{const u=new URL(e.sourceUrl);if(u.origin==='https://sismosgeociencias.up.ac.pa')return u.href}catch{}}const p=new URLSearchParams({e:e.status,f:e.date,h:e.displayTime,ln:e.lon.toFixed(5),lt:e.lat.toFixed(5),m:String(e.mag),p:`${e.depth}km`,r:'Localizado en '+e.region,z:'9'});return 'https://sismosgeociencias.up.ac.pa/ultimosismo.html?'+p.toString()}
 // Popup is deliberately hidden until a user selects an epicenter or a 3D hypocenter.
-let popupAnchor=null;
-function closeEventPopup(){const panel=$('mapPopup');panel.hidden=true;panel.dataset.eventId='';popupAnchor=null}
+let popupAnchor=null,popupReturnFocus=null;
+function closeEventPopup(){const panel=$('mapPopup');panel.hidden=true;panel.dataset.eventId='';popupAnchor=null;document.body.classList.remove('popup-open');$('popupBackdrop').hidden=true;if(popupReturnFocus?.isConnected)popupReturnFocus.focus({preventScroll:true});popupReturnFocus=null}
 function positionEventPopup(){
  const panel=$('mapPopup');if(panel.hidden)return;
  if(window.matchMedia('(max-width:630px)').matches){panel.style.left='10px';panel.style.top='auto';return}
@@ -4071,7 +4131,7 @@ function positionEventPopup(){
 }
 function openEventPopup(e,anchor=null){
  if(!e||!lastFilter.some(q=>q.id===e.id))return;
- const panel=$('mapPopup');panel.hidden=false;panel.dataset.eventId=String(e.id);
+ const panel=$('mapPopup');if(panel.hidden)popupReturnFocus=document.activeElement;panel.hidden=false;panel.dataset.eventId=String(e.id);hideMapHover();const isMobile=window.matchMedia('(max-width:630px)').matches;document.body.classList.toggle('popup-open',isMobile);$('popupBackdrop').hidden=!isMobile;if(isMobile)requestAnimationFrame(()=>$('popupClose').focus({preventScroll:true}));
  panel.style.setProperty('--event-accent',rgb(e));
  $('popStatus').textContent=e.status;
  $('popMag').textContent=e.mag.toFixed(1);
@@ -4085,7 +4145,7 @@ function openEventPopup(e,anchor=null){
  popupAnchor=anchor;
  requestAnimationFrame(positionEventPopup);
 }
-$('popupClose').addEventListener('click',closeEventPopup);
+$('popupClose').addEventListener('click',closeEventPopup);$('popupBackdrop').addEventListener('click',closeEventPopup);
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!$('mapPopup').hidden){closeEventPopup();$('geoMap').focus?.()}});
 $('popCopy').addEventListener('click',async()=>{
  const e=EVENTS.find(q=>String(q.id)===$('mapPopup').dataset.eventId);
@@ -4095,28 +4155,67 @@ $('popCopy').addEventListener('click',async()=>{
  catch{const box=document.createElement('textarea');box.value=val;document.body.appendChild(box);box.select();const ok=document.execCommand('copy');box.remove();$('popCopy').textContent=ok?'✓ Copiado':'Copiar manualmente';}
 });
 window.addEventListener('resize',()=>{if(!$('mapPopup').hidden)requestAnimationFrame(positionEventPopup)});
-function render(){renderLatestAlert();lastFilter=getFiltered();const f=lastFilter;$('sCount').textContent=f.length;$('filteredCount').textContent=f.length;$('listCount').textContent=f.length+' registros';$('sMax').textContent=f.length?Math.max(...f.map(e=>e.mag)).toFixed(1):'—';$('sAvg').textContent=f.length?(f.reduce((a,e)=>a+e.mag,0)/f.length).toFixed(1):'—';const ds=f.map(e=>e.depth).sort((a,b)=>a-b);$('sDepth').textContent=f.length?((ds[Math.floor((ds.length-1)/2)]+ds[Math.floor(ds.length/2)])/2).toFixed(0):'—';renderList();renderMap();renderTimeline();if(state.mode==='3d')render3D();if(!$('mapPopup').hidden){const e=lastFilter.find(e=>e.id===state.selected);if(e)openEventPopup(e,popupAnchor);else closeEventPopup();}}
-function renderMap(){let contents='';const selectedVisible=lastFilter.some(e=>e.id===state.selected);const k=1600/state.view[2];document.querySelectorAll('.place text').forEach(el=>{el.style.fontSize=(el.classList.contains('important')?15:13)/k+'px';el.style.strokeWidth=3/k+'px'});document.querySelectorAll('.place circle').forEach(el=>el.setAttribute('r',3/k));document.querySelectorAll('.map-territory').forEach(el=>el.style.fontSize=21/k+'px');
+
+function hideMapHover(){$('mapHover').hidden=true}
+function showMapHover(e){
+ if(!window.matchMedia('(hover:hover) and (pointer:fine)').matches||!$('mapPopup').hidden)return;
+ const panel=$('mapHover');panel.hidden=false;$('hoverMag').textContent=(e.id===latestCatalogEvent()?.id?'ÚLTIMO · ':'')+'M '+e.mag.toFixed(1);
+ $('hoverRegion').textContent=e.region;$('hoverFacts').textContent=dateShort(e.date)+' · '+e.time+' (Panamá) · '+e.depth+' km · Clic para abrir la ficha';
+ const wrap=document.querySelector('.view-wrap').getBoundingClientRect(),point=document.querySelector('.point[data-id="'+e.id+'"] .marker-outer').getBoundingClientRect();
+ panel.style.left=Math.max(12,Math.min(wrap.width-panel.offsetWidth-12,point.left-wrap.left+point.width+14))+'px';
+ panel.style.top=Math.max(12,Math.min(wrap.height-panel.offsetHeight-12,point.top-wrap.top-panel.offsetHeight/2))+'px';
+}
+$('geoMap').addEventListener('pointerdown',hideMapHover);$('geoMap').addEventListener('wheel',hideMapHover);$('geoMap').addEventListener('pointerleave',hideMapHover);
+document.addEventListener('keydown',ev=>{
+ if(ev.key==='Escape')hideMapHover();
+ if(ev.key==='Tab'&&window.matchMedia('(max-width:630px)').matches&&!$('mapPopup').hidden){
+  const controls=Array.from($('mapPopup').querySelectorAll('button,a[href]')).filter(el=>el.checkVisibility());const first=controls[0],last=controls[controls.length-1];
+  if(ev.shiftKey&&document.activeElement===first){ev.preventDefault();last.focus()}else if(!ev.shiftKey&&document.activeElement===last){ev.preventDefault();first.focus()}
+ }
+});
+
+function render(){hideMapHover();renderLatestAlert();lastFilter=getFiltered();const f=lastFilter;$('sCount').textContent=f.length;$('filteredCount').textContent=f.length;$('listCount').textContent=f.length+' registros';$('sMax').textContent=f.length?Math.max(...f.map(e=>e.mag)).toFixed(1):'—';$('sAvg').textContent=f.length?(f.reduce((a,e)=>a+e.mag,0)/f.length).toFixed(1):'—';const ds=f.map(e=>e.depth).sort((a,b)=>a-b);$('sDepth').textContent=f.length?((ds[Math.floor((ds.length-1)/2)]+ds[Math.floor(ds.length/2)])/2).toFixed(0):'—';renderList();renderMap();renderTimeline();if(state.mode==='3d')render3D();if(!$('mapPopup').hidden){const e=lastFilter.find(e=>e.id===state.selected);if(e)openEventPopup(e,popupAnchor);else closeEventPopup();}}
+function renderMap(){let contents='';const selectedVisible=lastFilter.some(e=>e.id===state.selected);const mapBounds=$('geoMap').getBoundingClientRect();const mobile=window.matchMedia('(max-width:630px)').matches;const k=mobile?Math.max(mapBounds.width/state.view[2],mapBounds.height/state.view[3],.01):1600/state.view[2];document.querySelectorAll('.place text').forEach(el=>{el.style.fontSize=(el.classList.contains('important')?15:13)/k+'px';el.style.strokeWidth=3/k+'px'});document.querySelectorAll('.place circle').forEach(el=>el.setAttribute('r',3/k));if(mobile)document.querySelectorAll('.place text').forEach(el=>el.style.fontSize=(el.classList.contains('important')?13:11)/k+'px');document.querySelectorAll('.map-territory').forEach(el=>el.style.fontSize=21/k+'px');
 // circles keep a similar on-screen diameter when zooming
 for(const e of lastFilter.slice().reverse()){
- const r=(5+Math.max(0,e.mag-2)*2.7)/k;
- const s=e.id===state.selected;const c=rgb(e);
- contents+=`<g class="point" data-id="${e.id}" role="button" tabindex="0" aria-label="Magnitud ${e.mag.toFixed(1)} · ${escaped(e.region)} · ${e.depth} kilómetros de profundidad">`;
+ const r=(mobile?5+Math.max(0,e.mag-2)*1.65:5+Math.max(0,e.mag-2)*2.7)/k;
+ const s=e.id===state.selected;const c=rgb(e);const isLatest=e.id===latestCatalogEvent()?.id;
+ contents+=`<g class="point ${isLatest?'latest-event':''}" data-id="${e.id}" role="button" tabindex="0" aria-label="${isLatest?'Último sismo · ':''}Magnitud ${e.mag.toFixed(1)} · ${escaped(e.region)} · ${e.depth} kilómetros de profundidad">`;
+ if(isLatest)contents+=`<circle class="latest-pulse" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+4/k}" style="stroke-width:${1.5/k}"/>`;
  if(e.mag>=5.9) contents+=`<circle class="marker-halo" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r*1.9}" fill="${c}"/>`;
- contents+=`<circle class="point-hit" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${Math.max(r,13/k)}"/>`+`<circle class="marker-outer" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r}" fill="${c}" stroke="${c}" style="stroke-width:${1/k}"/>`;
+ contents+=`<circle class="point-hit" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${Math.max(r,(mobile?17:13)/k)}"/>`+`<circle class="marker-outer" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r}" fill="${c}" stroke="${c}" style="stroke-width:${1/k}"/>`;
  if(s)contents+=`<circle class="selected-ring" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+5/k}" style="stroke-width:${1.8/k};stroke-dasharray:${4/k} ${4/k}"/>`;
  else contents+=`<circle class="marker-core" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${Math.max(1.5/k,r*.19)}"/>`;
+
+ if(isLatest){
+  const scale=Math.max(mapBounds.width/state.view[2],mapBounds.height/state.view[3],.01),left=state.view[0]+(state.view[2]-mapBounds.width/scale)/2,top=state.view[1]+(state.view[3]-mapBounds.height/scale)/2;
+  if(x(e.lon)>=left&&x(e.lon)<=left+mapBounds.width/scale&&y(e.lat)>=top&&y(e.lat)<=top+mapBounds.height/scale){
+  const badgeW=126/scale,badgeH=27/scale;
+  const bx=Math.max(left+8/scale,Math.min(left+mapBounds.width/scale-badgeW-8/scale,x(e.lon)+r+10/scale));
+  const by=Math.max(top+8/scale,y(e.lat)-r-badgeH-7/scale);
+  contents+=`<line class="latest-leader" x1="${x(e.lon)}" y1="${y(e.lat)}" x2="${bx+badgeW/2}" y2="${by+badgeH}" style="stroke-width:${1/scale}"/><g class="latest-tag" transform="translate(${bx} ${by})"><rect class="latest-tag-bg" width="${badgeW}" height="${badgeH}" rx="${7/scale}" style="stroke-width:${1/scale}"/><text class="latest-tag-text" x="${badgeW/2}" y="${17/scale}" text-anchor="middle" style="font-size:${11/scale}px">ÚLTIMO · M ${e.mag.toFixed(1)}</text></g>`;
+  }
+ }
  contents+='</g>';
  }
  $('mapMarkers').innerHTML=contents;
  $('mapMarkers').querySelectorAll('.point').forEach(node=>{
+  node.addEventListener('pointerenter',()=>{const e=EVENTS.find(e=>e.id===+node.dataset.id);if(e)showMapHover(e)});node.addEventListener('pointerleave',hideMapHover);
   node.addEventListener('click',ev=>{ev.stopPropagation();selectEvent(+node.dataset.id,false,true)});
   node.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();selectEvent(+node.dataset.id,false,true)}});
  });
  if(!$('mapPopup').hidden&&state.mode==='2d')requestAnimationFrame(positionEventPopup);
  $('geoMap').setAttribute('viewBox',state.view.join(' '));
+ document.querySelectorAll('.place').forEach(place=>{
+  const text=place.querySelector('text'),circle=place.querySelector('circle');if(!text||!circle)return;
+  text.removeAttribute('transform');text.style.visibility='';if(!mobile)return;
+  const dot=circle.getBoundingClientRect(),label=text.getBoundingClientRect();
+  if(dot.left+dot.width/2<mapBounds.left||dot.left+dot.width/2>mapBounds.right){text.style.visibility='hidden';return}
+  const dx=label.right>mapBounds.right-7?(mapBounds.right-7-label.right)/k:label.left<mapBounds.left+7?(mapBounds.left+7-label.left)/k:0;
+  if(dx)text.setAttribute('transform','translate('+dx+' 0)');
+ });
 }
-function renderList(){const list=$('eventList');list.innerHTML=lastFilter.map(e=>`<button class="event-item ${e.id===state.selected?'selected':''}" data-id="${e.id}"><span class="m-badge" style="color:${rgb(e)};border-color:${rgb(e)}65">${e.mag.toFixed(1)}</span><span class="event-item-content"><span class="event-item-title">${escaped(e.region)}</span><span class="event-item-sub">${dateShort(e.date)} · ${e.time.slice(0,5)} · ${e.depth} km profundidad</span></span><span class="event-item-icon">›</span></button>`).join('')||'<div style="padding:25px 10px;color:#8aa4b8;font-size:12px">Sin resultados para estos filtros.</div>';list.querySelectorAll('[data-id]').forEach(node=>node.onclick=()=>selectEvent(+node.dataset.id,true,true));if(!lastFilter.find(e=>e.id===state.selected)&&lastFilter.length)state.selected=lastFilter[0].id;updateSelected()}
+function renderList(){const list=$('eventList');list.innerHTML=lastFilter.map(e=>`<button class="event-item ${e.id===state.selected?'selected':''} ${e.id===latestCatalogEvent()?.id?'is-latest':''}" data-id="${e.id}"><span class="m-badge" style="color:${rgb(e)};border-color:${rgb(e)}65">${e.mag.toFixed(1)}</span><span class="event-item-content">${e.id===latestCatalogEvent()?.id?'<span class="latest-list-tag">ÚLTIMO REGISTRO</span>':''}<span class="event-item-title">${escaped(e.region)}</span><span class="event-item-sub">${dateShort(e.date)} · ${e.time.slice(0,5)} · ${e.depth} km profundidad</span></span><span class="event-item-icon">›</span></button>`).join('')||'<div style="padding:25px 10px;color:#8aa4b8;font-size:12px">Sin resultados para estos filtros.</div>';list.querySelectorAll('[data-id]').forEach(node=>node.onclick=()=>selectEvent(+node.dataset.id,true,true));if(!lastFilter.find(e=>e.id===state.selected)&&lastFilter.length)state.selected=lastFilter[0].id;updateSelected()}
 function selectEvent(id,zoom,showPopup=false,anchor=null){state.selected=id;let e=EVENTS.find(q=>q.id===id);if(!e)return;if(zoom&&state.mode==='2d'){const w=Math.min(state.view[2],340),h=Math.min(state.view[3],245);state.view=[Math.max(0,Math.min(1600-w,x(e.lon)-w/2)),Math.max(0,Math.min(900-h,y(e.lat)-h/2)),w,h]}renderMap();renderList();if(state.mode==='3d')render3D();if(showPopup)openEventPopup(e,anchor);}
 function updateSelected(){const e=EVENTS.find(q=>q.id===state.selected);if(!e)return;$('selectedStatus').textContent=e.status;$('selectedMag').textContent='M '+e.mag.toFixed(1);$('selectedRegion').textContent=e.region;$('selectedInfo').textContent=`${dateShort(e.date)} · ${e.time} · ${e.depth} km profundidad`;$('selectedCoord').textContent=`${e.lat.toFixed(5)}° N, ${Math.abs(e.lon).toFixed(5)}° O`;$('selectedLink').href=eventUrl(e)}
 function renderTimeline(){const days=lastSevenDays(),base=EVENTS.filter(e=>e.mag>=state.minMag&&e.depth<=state.maxDepth&&(state.status==='all'||e.status===state.status)&&(!state.query||e.region.toLowerCase().includes(state.query.toLocaleLowerCase('es'))));const counts=days.map(day=>base.filter(e=>e.date===day).length),max=Math.max(1,...counts);$('timeline').innerHTML=days.map((day,i)=>`<div class="bar-wrap ${state.period==='date:'+day?'active':''}" data-day="${day}" title="${day}: ${counts[i]} eventos"><div class="bar" style="height:${Math.max(3,Math.round(48*counts[i]/max))}px"></div><div class="bar-label">${dateShort(day).toUpperCase()} <span style="color:#c4dded">${counts[i]}</span></div></div>`).join('');$('timeline').querySelectorAll('.bar-wrap').forEach(q=>q.onclick=()=>{state.period='date:'+q.dataset.day;document.querySelectorAll('#periodChips .chip').forEach(c=>c.classList.remove('active'));render()})}
@@ -4133,6 +4232,7 @@ function render3D(){const f=lastFilter;if(typeof Plotly==='undefined'){$('plot3d
  traces.push({type:'scatter3d',mode:'lines',x:longlines.x,y:longlines.y,z:longlines.z,line:{color:'rgba(127,209,231,.35)',width:2},name:'Proyección vertical',hoverinfo:'skip',showlegend:false});
  traces.push({type:'scatter3d',mode:'markers',x:f.map(e=>e.lon),y:f.map(e=>e.lat),z:f.map(e=>-e.depth),customdata:f.map(e=>e.id),text:f.map(e=>`${e.region}<br>M ${e.mag} · ${e.depth} km<br>${e.date} ${e.time}`),hovertemplate:'%{text}<extra></extra>',marker:{size:f.map(e=>Math.max(3,2.5+e.mag*1.65)),color:f.map(e=>rgb(e)),opacity:.96,line:{color:'#fff',width:.45}},name:'Hipocentros',showlegend:false});
  if(state.selected){let e=f.find(q=>q.id===state.selected);if(e)traces.push({type:'scatter3d',mode:'markers',x:[e.lon],y:[e.lat],z:[-e.depth],marker:{size:17,color:'rgba(0,0,0,0)',line:{color:'#ffffff',width:5}},hoverinfo:'skip',showlegend:false})}
+ const latest=latestCatalogEvent();if(latest&&f.some(e=>e.id===latest.id))traces.push({type:'scatter3d',mode:'text',x:[latest.lon],y:[latest.lat],z:[-latest.depth],text:['ÚLTIMO · M '+latest.mag.toFixed(1)],textposition:'top center',textfont:{size:13,color:'#a3f2db'},hoverinfo:'skip',showlegend:false});
  const layout={paper_bgcolor:'#071928',plot_bgcolor:'#071928',font:{family:'Inter, sans-serif',color:'#c9dbe8',size:11},margin:{l:0,r:0,t:0,b:0},showlegend:false,scene:{bgcolor:'#071928',xaxis:{title:'Longitud (°O)',range:[-84,-79.2],showbackground:true,backgroundcolor:'#102c3b',gridcolor:'#345565',zerolinecolor:'#497185',tickfont:{size:10}},yaxis:{title:'Latitud (°N)',range:[6.0,10.0],showbackground:true,backgroundcolor:'#0c2433',gridcolor:'#315467'},zaxis:{title:'Profundidad (km)',range:[-60,5],showbackground:true,backgroundcolor:'#0b2638',gridcolor:'#284b5d'},aspectmode:'manual',aspectratio:{x:1.5,y:1,z:.62},camera:{eye:{x:1.75,y:-1.6,z:1.0}}}};
  if(!plotReady){
   plotReady=true;
@@ -4149,7 +4249,7 @@ function render3D(){const f=lastFilter;if(typeof Plotly==='undefined'){$('plot3d
   });
  }else{Plotly.react('plot3d',traces,layout,{responsive:true,displaylogo:false,displayModeBar:false})}
 }
-function setMode(mode){if(mode!==state.mode)closeEventPopup();state.mode=mode;const on=mode==='3d';$('flatMap').style.display=on?'none':'block';$('plot3d').style.display=on?'block':'none';$('plotNote').style.display=on?'block':'none';$('bMap').classList.toggle('active',!on);$('b3D').classList.toggle('active',on);$('viewTitle').textContent=on?'Hipocentros · profundidad tridimensional':'Mapa de epicentros';if(on){render3D();setTimeout(()=>{if(typeof Plotly!=='undefined')Plotly.Plots.resize($('plot3d'))},140)}}
+function setMode(mode){hideMapHover();if(mode!==state.mode)closeEventPopup();state.mode=mode;const on=mode==='3d';$('flatMap').style.display=on?'none':'block';$('plot3d').style.display=on?'block':'none';$('plotNote').style.display=on?'block':'none';$('bMap').classList.toggle('active',!on);$('b3D').classList.toggle('active',on);$('viewTitle').textContent=on?'Hipocentros · profundidad tridimensional':'Mapa de epicentros';if(!on)renderMap();if(on){render3D();setTimeout(()=>{if(typeof Plotly!=='undefined')Plotly.Plots.resize($('plot3d'))},140)}}
 function todayPanama(){const p=new Intl.DateTimeFormat('en-US',{timeZone:'America/Panama',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const k={};for(const q of p)k[q.type]=q.value;return `${k.year}-${k.month}-${k.day}`}
 function lastSevenDays(){const cur=new Date(todayPanama()+'T12:00:00Z');return Array.from({length:7},(_,i)=>new Date(cur.getTime()-(6-i)*86400000).toISOString().slice(0,10))}
 function dateShort(s){const parts=s.split('-');return `${+parts[2]} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+parts[1]-1]}`}
@@ -4216,6 +4316,7 @@ function renderLatestAlert(){
  $('alertLocation').textContent=latest.region;
  $('alertMeta').textContent=dateShort(latest.date)+' '+latest.date.slice(0,4)+' · '+latest.time+' (Panamá, UTC−5) · '+latest.depth+' km · '+latest.status;
  const stale=lastSuccessAt&&Date.now()-new Date(lastSuccessAt).getTime()>30*60*1000;
+ document.querySelector('.latest-alert').classList.toggle('is-stale',latestIsSnapshot||!!stale);
  const dataNote=latestIsSnapshot?'Captura histórica · ':stale?'Datos sin actualizar · ':'';
  $('alertFreshness').textContent=dataNote+'Último registro del catálogo; no es una alerta de emergencia.';
 }
@@ -4232,10 +4333,30 @@ $('viewLatest').onclick=()=>{
   render();
   $('toast').textContent='Filtros restablecidos para mostrar el último evento.';$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2800);
  }
+ if(window.matchMedia('(max-width:630px)').matches){document.querySelector('.main-grid').classList.remove('mobile-filters-open');$('mobileFilterToggle').setAttribute('aria-expanded','false')}
  setMode('2d');selectEvent(latest.id,true,true);
  document.querySelector('.map-panel').scrollIntoView({behavior:'smooth',block:'start'});
  requestAnimationFrame(()=>$('mapPopup').focus({preventScroll:true}));
 };
+
+function setMobileFilters(open){
+ document.querySelector('.main-grid').classList.toggle('mobile-filters-open',open);
+ $('mobileFilterToggle').setAttribute('aria-expanded',String(open));
+ if(window.matchMedia('(max-width:630px)').matches){
+  if(open){$('mobileFilters').scrollIntoView({behavior:'instant',block:'start'});$('closeMobileFilters').focus({preventScroll:true})}
+  else{document.querySelector('.map-panel').scrollIntoView({behavior:'instant',block:'start'});$('mobileFilterToggle').focus({preventScroll:true})}
+ }
+}
+$('mobileFilterToggle').onclick=()=>setMobileFilters($('mobileFilterToggle').getAttribute('aria-expanded')!=='true');
+$('closeMobileFilters').onclick=()=>setMobileFilters(false);$('mobileActiveZone').onclick=()=>{setMode('2d');focusZone()};$('mobileRegional').onclick=()=>{setMode('2d');regional()};
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&document.querySelector('.main-grid').classList.contains('mobile-filters-open'))setMobileFilters(false)});
+let mobileViewport=window.matchMedia('(max-width:630px)').matches;
+window.addEventListener('resize',()=>{
+ const nowMobile=window.matchMedia('(max-width:630px)').matches;
+ if(nowMobile!==mobileViewport){mobileViewport=nowMobile;document.querySelector('.main-grid').classList.remove('map-expanded','mobile-filters-open');$('mobileFilterToggle').setAttribute('aria-expanded','false');$('expandMap').setAttribute('aria-pressed','false');$('expandMap').textContent='⤢ Ampliar mapa';}
+ if(state.mode==='2d')renderMap();
+});
+
 $('expandMap').onclick=()=>{
  const expanded=document.querySelector('.main-grid').classList.toggle('map-expanded');
  $('expandMap').setAttribute('aria-pressed',String(expanded));$('expandMap').textContent=expanded?'⤡ Vista completa':'⤢ Ampliar mapa';
