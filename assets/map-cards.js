@@ -21,6 +21,7 @@ function placeMapCard(panel,event,avoid=[]){
  }
  if(best){panel.style.left=Math.round(best.x)+'px';panel.style.top=Math.round(best.y)+'px';}
  panel.dataset.anchored=String(shown);
+ return shown;
 }
 function renderLatestMapCard(){
  const panel=$('mapLatestHover'),event=latestCatalogEvent();
@@ -29,6 +30,6 @@ function renderLatestMapCard(){
  $('latestHoverMag').textContent='ÚLTIMO · M '+event.mag.toFixed(1);
  $('latestHoverRegion').textContent=event.region;
  $('latestHoverFacts').textContent=`${dateShort(event.date)} · ${formatLocalTime(event.time)} (Panamá) · ${event.depth} km · ${event.status}`;
- placeMapCard(panel,event);
+ panel.hidden=!placeMapCard(panel,event);
 }
 window.addEventListener('resize',()=>requestAnimationFrame(renderLatestMapCard));
