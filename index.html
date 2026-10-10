@@ -4316,7 +4316,7 @@ const OFFICIAL_IGC='https://sismosgeociencias.up.ac.pa/';
 const REFRESH_EVERY_MS=Math.max(30000,Number(window.ATLAS_CONFIG?.pollMs)||60000);
 const DATA_URL=window.ATLAS_CONFIG?.dataUrl||'./sismos.json';
 const cachedCatalogs=new Map();
-let updating=false,lastAttempt=0,lastSuccessAt=null,lastFingerprint=null,lastGoodCatalog=null;
+let updating=false,lastAttempt=0,lastSuccessAt=null,lastFingerprint=null,lastRenderedDay=null;
 let shownSnapshotTime='09/10/2026 a las 18:34';
 
 let latestIsSnapshot=true;
@@ -4403,7 +4403,7 @@ function showEvents(newEvents,source,fetchedAt,kind='live'){
   return false;
  }
  const fingerprint=JSON.stringify(newEvents.map(e=>[e.date,e.time,e.lat,e.lon,e.mag,e.depth,e.status,e.region,e.displayTime,e.sourceUrl||'']));
- if(fingerprint!==lastFingerprint){
+ if(fingerprint!==lastFingerprint||lastRenderedDay!==todayPanama()){
   const listScroll=$('eventList').scrollTop;
   const old=EVENTS.find(e=>e.id===state.selected);
   EVENTS=newEvents;
@@ -4413,6 +4413,7 @@ function showEvents(newEvents,source,fetchedAt,kind='live'){
   $('dateRangeDescription').textContent=`Epicentros del catálogo IGC–UP · ${dateShort(ds[0])} – ${dateShort(ds[ds.length-1])} · Hora local de Panamá (UTC−5)`;
   $('periodChips').querySelector('[data-period="today"]').textContent='Hoy · '+dateShort(todayPanama());
   lastFingerprint=fingerprint;
+  lastRenderedDay=todayPanama();
   render();
   $('eventList').scrollTop=listScroll;
  }
@@ -4434,7 +4435,6 @@ function showEvents(newEvents,source,fetchedAt,kind='live'){
  }
  latestIsSnapshot=kind==='snapshot';renderLatestAlert();
  $('footerSync').textContent=`${kind==='snapshot'?'Captura inicial':'Última actualización oficial'}: ${stamp} (Panamá) · ${source}`;
- lastGoodCatalog={rows:newEvents,source,fetchedAt,kind};
  return true;
 }
 async function fetchWithTimeout(url,controller,ms=15000,options={}){
