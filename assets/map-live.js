@@ -35,11 +35,10 @@
   const latest=latestCatalogEvent(),age=latest?Date.now()-Date.parse(latest.date+'T'+latest.time+'-05:00'):Infinity;
   const fresh=!!latest&&!latestIsSnapshot&&!!lastSuccessAt&&Date.now()-Date.parse(lastSuccessAt)<5*60000;
   const active=fresh&&(age>=0&&age<30*60000||window.atlasLiveUI.isNew(latest));
-  document.querySelector('.latest-alert').classList.toggle('has-recent-event',active);
+  window.atlasHeader?.sync();
   let expired=false;for(const [key,until]of newUntil)if(until<=Date.now()){newUntil.delete(key);expired=true;}
   if(pulseActive!==active||expired){pulseActive=active;renderMap();}
   const ageLabel=document.querySelector('.latest-tag .magnitude-label-detail');if(ageLabel&&latest)ageLabel.textContent=eventAgeLabel(latest);
-  if(latest)get('mobileLatestMeta').textContent=eventAgeLabel(latest)+' · '+latest.depth+' km · '+latest.status;
  }
  setInterval(()=>{if(!document.hidden)updatePulse();},10000);
 
