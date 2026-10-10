@@ -32,9 +32,23 @@ jobs:
         with:
           python-version: '3.12'
       - name: Consultar tabla del Instituto de Geociencias
+        id: sincronizar
+        continue-on-error: true
         run: |
           # Conservar el JSON anterior si la página oficial no responde.
-          python scripts/actualizar_sismos.py || echo '::warning::Origen IGC-UP no disponible; se conserva la última copia.'
+          python scripts/actualizar_sismos.py
+      - name: Mostrar resultado de la descarga
+        if: ${{ !cancelled() }}
+        env:
+          SYNC_OUTCOME: ${{ steps.sincronizar.outcome }}
+        run: |
+          if [ "$SYNC_OUTCOME" = "success" ]; then
+            echo "Descarga oficial correcta: $(jq -r .fetched_at_utc sismos.json) (UTC)." >> "$GITHUB_STEP_SUMMARY"
+            echo "Registros: $(jq '.events | length' sismos.json)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '::warning::La descarga oficial falló tras los reintentos; se publicará la última copia válida.'
+            echo 'La descarga oficial falló. Se conserva la última copia válida, sin cambiar su fecha de descarga.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Guardar la última descarga en el repositorio
         run: |
           if ! git diff --quiet -- sismos.json; then
@@ -59,3 +73,8 @@ jobs:
       - name: Publicar en GitHub Pages
         id: publicar
         uses: actions/deploy-pages@v4
+      - name: Señalar que no se consiguieron datos nuevos
+        if: ${{ !cancelled() && steps.sincronizar.outcome == 'failure' }}
+        run: |
+          echo '::error::No se consiguieron datos oficiales nuevos. Consulte los intentos de descarga en este workflow.'
+          exit 1

@@ -8,9 +8,12 @@ import json
 import re
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from html.parser import HTMLParser
+from http.client import IncompleteRead
 from pathlib import Path
 
 SOURCE = 'https://sismosgeociencias.up.ac.pa/'
@@ -104,16 +107,40 @@ def parse(html_text):
     return events
 
 
-def main():
+def download_events(attempts=3):
     request = urllib.request.Request(SOURCE,headers={
         'User-Agent': 'Mozilla/5.0 (compatible; AtlasSismicoPanama/1.0; public data collector)',
         'Accept': 'text/html,application/xhtml+xml',
+        'Cache-Control': 'no-cache',
     })
-    with urllib.request.urlopen(request, timeout=25) as resp:
-        charset = resp.headers.get_content_charset() or 'utf-8'
-        raw = resp.read(5_000_000)
-        html_text = raw.decode(charset, errors='replace')
-    events = parse(html_text)
+    for attempt in range(1, attempts + 1):
+        started = time.monotonic()
+        try:
+            with urllib.request.urlopen(request, timeout=25) as resp:
+                charset = resp.headers.get_content_charset() or 'utf-8'
+                raw = resp.read(5_000_001)
+                if len(raw) > 5_000_000:
+                    raise ValueError('La respuesta oficial supera el límite de 5 MB')
+                events = parse(raw.decode(charset, errors='replace'))
+            print(f'GET oficial: intento {attempt}/{attempts}, '
+                  f'{time.monotonic() - started:.1f}s, {len(events)} sismos', flush=True)
+            return events
+        except urllib.error.HTTPError as exc:
+            if exc.code not in (408, 429, 500, 502, 503, 504):
+                raise
+            error = exc
+        except (OSError, IncompleteRead) as exc:
+            error = exc
+        if attempt == attempts:
+            raise error
+        delay = 2 ** attempt
+        print(f'GET oficial: intento {attempt}/{attempts} falló ({error}); '
+              f'reintento en {delay}s', file=sys.stderr, flush=True)
+        time.sleep(delay)
+
+
+def main():
+    events = download_events()
     document = {'source':'IGC-UP','source_url':SOURCE,
                 'fetched_at_utc':datetime.now(timezone.utc).isoformat(timespec='seconds'),
                 'snapshot_only':False,'events':events}
@@ -130,4 +157,9 @@ if __name__=='__main__':
     if '--fixture' in sys.argv:
         print('TEST',len(parse(Path(sys.argv[sys.argv.index('--fixture')+1]).read_text(encoding='utf-8'))))
     else:
-        main()
+        try:
+            main()
+        except (OSError, ValueError) as exc:
+            print(f'ERROR: no se actualizó el catálogo; se conserva la copia anterior. {exc}',
+                  file=sys.stderr)
+            sys.exit(1)

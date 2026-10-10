@@ -16,6 +16,8 @@ Mapa interactivo 2D + 3D que representa **los eventos del catálogo público del
 
 El panel indica `Actualizado el DD/MM/AAAA a las HH:mm` usando **la fecha/hora real de la descarga oficial** en zona `America/Panama`, no el reloj de quien visita. Si falla IGC-UP, conserva el último `sismos.json` publicado; el estado advertirá que la captura no es reciente. El JSON incluido inicialmente es una captura histórica, no una consulta viva.
 
+La descarga realiza hasta tres intentos ante fallos de red o HTTP transitorios (408, 429, 500, 502, 503 y 504), con pausas de 2 y 4 segundos. Una respuesta inválida no sustituye los datos existentes. El resumen de Actions muestra la fecha real de descarga y el número de registros; si se agotan los intentos, el sitio conserva su última copia válida y el workflow queda marcado como fallido. Un resultado verde confirma que la descarga y la publicación terminaron correctamente, pero no garantiza que GitHub inicie la siguiente ejecución programada.
+
 GitHub Actions **no garantiza periodicidad exacta**; los disparadores programados pueden retrasarse/omitirse y GitHub puede desactivar los schedules de repositorios públicos sin actividad tras 60 días. GitHub Pages tiene su propia latencia de despliegue, por lo que el indicador de última actualización es la referencia de frescura.
 
 **No es un sistema de alerta temprana ni sustituye información oficial de emergencia.** Los valores publicados por el IGC-UP pueden ser revisados posteriormente.
