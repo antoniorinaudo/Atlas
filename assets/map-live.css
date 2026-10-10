@@ -6,7 +6,7 @@
 .stream-state[data-state=live]:before{background:#7cddbd}.stream-state[data-state=offline]:before{background:#ff8585}
 .map-live-notice{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#174443;border-bottom:1px solid #67c6b4;color:#e9fff9;font-size:13px;line-height:1.5}
 .map-live-notice[hidden]{display:none}.map-live-notice span{flex:1;min-width:0}.map-live-notice button{flex:none}.map-live-notice button:last-child{font-size:22px;min-width:44px;padding:4px}
-.marker-value{fill:#102936;font-weight:900;pointer-events:none;stroke:none;paint-order:normal}
+.marker-value{fill:#102936;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.2px;pointer-events:none;stroke:none;paint-order:normal}
 .magnitude-label-bg{fill:#102b38;stroke:#5e9baf}.magnitude-label-title{fill:#e3f7ff;font-weight:800;letter-spacing:.25px;pointer-events:none}.magnitude-label-detail{fill:#b8d7e1;pointer-events:none}
 .latest-tag .magnitude-label-bg{fill:#123f3c;stroke:#8ae5c6}.latest-tag .magnitude-label-title{fill:#bfffea}.latest-tag .magnitude-label-detail{fill:#d3f6e9}.selected-tag .magnitude-label-bg{fill:#183b55;stroke:#9ecfff}.strong-tag .magnitude-label-title{fill:#ffe4a0}
 .magnitude-tag .latest-leader{pointer-events:none;stroke:#80bdbd;opacity:.65}.magnitude-tag:hover .magnitude-label-bg,.magnitude-tag:focus-visible .magnitude-label-bg{stroke:#fff;fill:#24596a}

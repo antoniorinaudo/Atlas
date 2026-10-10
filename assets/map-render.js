@@ -5,9 +5,11 @@ function eventAgeLabel(e){
  const minutes=Math.floor(delta/60000);
  return minutes<1?'hace menos de 1 min':minutes<60?'hace '+minutes+' min':minutes<1440?'hace '+Math.floor(minutes/60)+' h':dateShort(e.date)+' · '+e.time.slice(0,5);
 }
-function markerRadiusPx(mag,mobile=matchMedia('(max-width:630px)').matches){
- return 5+Math.pow(Math.max(0,Math.min(1,(mag-1.5)/5.5)),1.3)*(mobile?9:11);
+function markerMetricsPx(mag,mobile=matchMedia('(max-width:630px)').matches){
+ const scale=Math.pow(Math.max(0,Math.min(9,mag))/9,1.1);
+ return {radius:9+scale*(mobile?12:15),fontSize:9+scale*(mobile?6.5:8)};
 }
+function markerRadiusPx(mag,mobile=matchMedia('(max-width:630px)').matches){return markerMetricsPx(mag,mobile).radius;}
 function renderMap(){
  if(window.atlasMap?.isGesturing)return;
  const svg=$('geoMap'),bounds=svg.getBoundingClientRect();if(!bounds.width||!bounds.height)return;
@@ -20,7 +22,7 @@ function renderMap(){
  const ordered=visible.slice().sort((a,b)=>((a.id===state.selected?1:0)+(a.id===latest?.id?2:0))-((b.id===state.selected?1:0)+(b.id===latest?.id?2:0))||a.mag-b.mag);
  let contents='';
  for(const e of ordered){
-  const r=markerRadiusPx(e.mag,mobile)/k,c=rgb(e),selected=e.id===state.selected,isLatest=e.id===latest?.id;
+  const metrics=markerMetricsPx(e.mag,mobile),r=metrics.radius/k,c=rgb(e),selected=e.id===state.selected,isLatest=e.id===latest?.id;
   const age=Date.now()-Date.parse(e.date+'T'+e.time+'-05:00');
   const recent=!latestIsSnapshot&&lastSuccessAt&&Date.now()-Date.parse(lastSuccessAt)<5*60000&&age>=0&&age<30*60000;
   const newlyPublished=!!window.atlasLiveUI?.isNew(e);
@@ -30,8 +32,7 @@ function renderMap(){
   if(e.mag>=6)contents+=`<circle class="marker-halo" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r*1.55}" fill="${c}"/>`;
   contents+=`<circle class="point-hit" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${Math.max(r,(mobile?22:15)/k)}"/><circle class="marker-outer" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r}" fill="${c}" stroke="${c}" style="stroke-width:${1/k}"/>`;
   if(selected)contents+=`<circle class="selected-ring" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+4/k}" style="stroke-width:${1.7/k};stroke-dasharray:${4/k} ${3/k}"/>`;
-  if(selected||(labelsOn&&e.mag>=6))contents+=`<text class="marker-value" x="${x(e.lon)}" y="${y(e.lat)+3.5/k}" text-anchor="middle" style="font-size:${10/k}px">${e.mag.toFixed(1)}</text>`;
-  else contents+=`<circle class="marker-core" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${1.4/k}"/>`;
+  contents+=`<text class="marker-value" x="${x(e.lon)}" y="${y(e.lat)}" dy=".35em" text-anchor="middle" style="font-size:${metrics.fontSize/k}px">${e.mag.toFixed(1)}</text>`;
   contents+='</g>';
  }
  const intersects=(a,b)=>a.x<b.x+b.w+5&&a.x+a.w+5>b.x&&a.y<b.y+b.h+5&&a.y+a.h+5>b.y;
