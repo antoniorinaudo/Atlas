@@ -22,6 +22,7 @@
    const latest=after.reduce((a,e)=>!a||stamp(e)>stamp(a)?e:a,null);
    const prior=before.reduce((a,e)=>!a||stamp(e)>stamp(a)?e:a,null);
    const additions=after.filter(e=>!old.has(identity(e))&&(!prior||stamp(e)>stamp(prior)));
+   if(before.length&&additions.length)window.atlasPush?.catalogSound(additions);
    const revised=after.find(e=>{const a=old.get(identity(e));return a&&[a.mag,a.depth,a.status,a.region].join('|')!==[e.mag,e.depth,e.status,e.region].join('|');});
    const e=additions.length?latest:revised;if(!e)return;
    additions.forEach(e=>newUntil.set(identity(e),Date.now()+90000));

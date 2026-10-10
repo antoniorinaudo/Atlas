@@ -10,6 +10,39 @@
  const supported='serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window&&isSecureContext;
  const status=message=>get('pushStatus').textContent=message;
  const save=()=>{try{localStorage.setItem(storageKey,JSON.stringify(record));}catch{}};
+ const soundKey='atlas-sound-v1',AudioEngine=window.AudioContext||window.webkitAudioContext;
+ let soundEnabled=false,audio=null;
+ try{soundEnabled=localStorage.getItem(soundKey)==='1';}catch{}
+ const soundToggle=get('soundEnabled'),soundTest=get('soundTest'),soundStatus=get('soundStatus');
+ soundToggle.checked=soundEnabled;soundToggle.disabled=!AudioEngine;soundTest.disabled=!soundEnabled||!AudioEngine;
+ soundStatus.textContent=!AudioEngine?'Este navegador no permite sonido dentro de la app.':soundEnabled?'Sonido guardado. Toca «Probar sonido» para comprobarlo en esta sesión.':'Sonido dentro de la app desactivado.';
+ async function armSound(){
+  if(!soundEnabled||!AudioEngine)return false;
+  try{audio ||= new AudioEngine();if(audio.state==='suspended')await audio.resume();return audio.state==='running';}
+  catch{soundStatus.textContent='No se pudo iniciar el sonido. Toca «Probar sonido» para reintentar.';return false;}
+ }
+ function playTone(){
+  if(!soundEnabled||audio?.state!=='running')return false;
+  try{
+   const now=audio.currentTime;
+   [660,880,660].forEach((frequency,index)=>{
+    const oscillator=audio.createOscillator(),gain=audio.createGain(),start=now+index*.24;
+    oscillator.type='sine';oscillator.frequency.value=frequency;
+    gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(.12,start+.015);gain.gain.exponentialRampToValueAtTime(.001,start+.18);
+    oscillator.connect(gain);gain.connect(audio.destination);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};oscillator.start(start);oscillator.stop(start+.2);
+   });return true;
+  }catch{soundStatus.textContent='No se pudo reproducir el tono. Puedes volver a probar.';return false;}
+ }
+ soundToggle.onchange=async()=>{
+  soundEnabled=soundToggle.checked;try{localStorage.setItem(soundKey,soundEnabled?'1':'0');}catch{}
+  soundTest.disabled=!soundEnabled||!AudioEngine;
+  if(!soundEnabled){soundStatus.textContent='Sonido dentro de la app desactivado.';return;}
+  if(await armSound())soundStatus.textContent='Sonido activado para nuevos registros desde la magnitud elegida, mientras la app esté visible.';
+ };
+ soundTest.onclick=async()=>{if(await armSound()&&playTone())soundStatus.textContent='Tono de prueba reproducido. El volumen depende de tu dispositivo.';};
+ // A saved preference still needs a user gesture to unlock browser audio.
+ document.addEventListener('pointerdown',()=>{if(soundEnabled)void armSound();},{passive:true});
+ document.addEventListener('keydown',()=>{if(soundEnabled)void armSound();});
  function controls(){
   const active=!!subscription&&!!record?.token&&Notification.permission==='granted';
   get('pushEnable').hidden=active;get('pushDisable').hidden=!active;get('pushTest').hidden=!active;
@@ -73,6 +106,10 @@
  window.atlasPush={handleDeepLink(){
   if(!eventToOpen)return;const e=EVENTS.find(e=>eventIdentity(e)===eventToOpen);if(!e)return;
   eventToOpen=null;focusCatalogEvent(e);
+ },catalogSound(additions){
+  if(document.hidden||!soundEnabled)return;
+  const minimum=Number(get('pushMagnitude').value);
+  if(additions.some(event=>event.mag>=minimum)&&playTone())soundStatus.textContent='Sonó un aviso de nuevo registro del IGC–UP.';
  }};
  navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='atlas-open-event'){eventToOpen=event.data.event;window.atlasPush.handleDeepLink();if(eventToOpen)refreshAutomatically().then(()=>window.atlasPush.handleDeepLink());}});
  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;});
@@ -85,7 +122,7 @@
  };
  get('installClose').onclick=()=>get('installDialog').close();
  if('serviceWorker'in navigator&&isSecureContext){
-  navigator.serviceWorker.register('./sw.js?v=20261010-header-actions5',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
+  navigator.serviceWorker.register('./sw.js?v=20261010-sticky-sound7',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
    registration=reg;if(supported)subscription=await reg.pushManager.getSubscription();
    if(record?.pendingDelete){try{await api('unsubscribe',{id:record.id,token:record.token});record={minMagnitude:record.minMagnitude};save();}catch{}}
    availability();window.atlasPush.handleDeepLink();

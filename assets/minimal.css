@@ -1,4 +1,9 @@
 /* Compact chrome leaves the map and its live event cards in the foreground. */
+html,body{overflow-x:clip;overflow-y:visible}body{height:auto;min-height:100%}
+.shell>header{position:sticky;top:0;z-index:35;background:#081b26;box-shadow:0 2px 12px #0002}
+.map-panel,.side{scroll-margin-top:calc(var(--atlas-header-height,78px) + 52px)}
+.header-latest[hidden]{display:none!important}.header-latest{display:flex;align-items:center;flex:1;min-width:0;gap:9px;min-height:34px;padding:5px 9px;border:1px solid #4c837d;border-radius:8px;background:#123b3d;color:#e6fff7;font:inherit;text-align:left;cursor:pointer}.header-latest b{flex:none;color:var(--latest-accent,#a0f1d8);font-size:16px;white-space:nowrap}.header-latest-copy{flex:1;min-width:0}.header-latest-copy small{color:#b6d3d9;font-size:9px}.header-latest-copy span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.header-latest-time{flex:none;font-size:10px;color:#c4dadd}.header-latest-arrow{font-size:17px}.header-latest:focus-visible{outline:2px solid #9affdc;outline-offset:2px}
+.shell>header.latest-in-header .syncbar{display:none}
 .shell>header{min-height:62px;padding:8px 20px;gap:12px;flex-wrap:nowrap}
 .brand{gap:10px;flex:none}.brand-icon{width:38px;height:38px;border-radius:11px}.brand-copy b{font-size:22px}.brand-copy small{font-size:8px;letter-spacing:2px}
 .header-spacer,.top-notice,.syncbar .auto-timing{display:none}
@@ -38,4 +43,7 @@
  .view-wrap,.map-expanded .view-wrap{height:max(280px,calc(100svh - 285px));min-height:0}
  .map-panel .stats{grid-template-columns:repeat(2,minmax(0,1fr));padding:10px;row-gap:10px}.map-panel .stat{justify-content:space-between;padding:2px 10px;gap:6px}.map-panel .stat:nth-child(3){border-left:0}.map-panel .stat-label{font-size:9px;max-width:80px}.map-panel .stat-value{font-size:20px}.map-panel .stat-unit{font-size:9px}
  .right-side .event-list-heading{display:none}.intro{display:none}
+}
+@media(max-width:850px){
+ .shell>header.latest-in-header .syncbar{display:flex}.shell>header .header-latest{position:absolute;top:100%;left:0;right:0;width:100%;min-height:48px;padding:6px 12px;border-radius:0;border-left:0;border-right:0;box-shadow:0 5px 12px #0003}.header-latest b{font-size:18px}.header-latest-copy span{font-size:11px}.header-latest-time{font-size:10px}
 }

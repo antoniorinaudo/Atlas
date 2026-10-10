@@ -1,5 +1,5 @@
-const CACHE='atlas-mobile-pwa-20261010-6',VERSION='?v=20261010-minimal6';
-const files=['./','manifest.webmanifest','assets/icon-192.png','assets/icon-512.png',...['config.js','time-format.js','map-cards.js','diagnostico.js','diagnostico.css','map-live.js','map-render.js','map-live.css','pwa.js','pwa.css','minimal.css'].map(file=>'assets/'+file+VERSION)];
+const CACHE='atlas-mobile-pwa-20261010-7',VERSION='?v=20261010-sticky-sound7';
+const files=['./','manifest.webmanifest','assets/icon-192.png','assets/icon-512.png',...['config.js','time-format.js','map-cards.js','diagnostico.js','diagnostico.css','map-live.js','map-render.js','map-live.css','pwa.js','pwa.css','minimal.css','header-latest.js'].map(file=>'assets/'+file+VERSION)];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(files)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('atlas-mobile-pwa-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
@@ -11,7 +11,7 @@ self.addEventListener('fetch',event=>{
 self.addEventListener('push',event=>{
  let data;try{data=event.data?.json();}catch{}
  const title=data?.title||'Atlas Sísmico Panamá';
- event.waitUntil(self.registration.showNotification(title,{body:data?.body||'Hay un aviso del catálogo IGC–UP. Abre la app para consultarlo.',icon:new URL('assets/icon-192.png',self.registration.scope).href,badge:new URL('assets/icon-192.png',self.registration.scope).href,tag:data?.tag||'atlas-registro',data:{event:data?.event||null},timestamp:data?.timestamp||Date.now()}));
+ event.waitUntil(self.registration.showNotification(title,{body:data?.body||'Hay un aviso del catálogo IGC–UP. Abre la app para consultarlo.',icon:new URL('assets/icon-192.png',self.registration.scope).href,badge:new URL('assets/icon-192.png',self.registration.scope).href,tag:data?.tag||'atlas-registro',data:{event:data?.event||null},timestamp:data?.timestamp||Date.now(),silent:false,renotify:true,vibrate:[200,100,200]}));
 });
 self.addEventListener('notificationclick',event=>{
  event.notification.close();const key=event.notification.data?.event;
