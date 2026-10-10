@@ -1,4 +1,4 @@
-# SEISMO. · Atlas Sísmico de Panamá
+# Atlas Sísmico Panamá
 
 Mapa interactivo 2D + 3D que representa **los eventos del catálogo público del Instituto de Geociencias de la Universidad de Panamá (IGC-UP)**. La aplicación muestra fichas interactivas al seleccionar epicentros o hipocentros, fecha, hora local, magnitud, profundidad, coordenadas, estado y enlace oficial.
 
@@ -40,3 +40,7 @@ El código propio del Atlas Sísmico Panamá se distribuye bajo la licencia MIT.
 **Fuente oficial de los datos sísmicos:** Instituto de Geociencias de la Universidad de Panamá (IGC-UP), a través de su [catálogo público de sismos](https://sismosgeociencias.up.ac.pa/).
 
 Se reconoce al IGC-UP por la publicación de la información utilizada en este atlas. Los registros pueden ser revisados por la institución; para consultar la información de origen, visite su página oficial. Este atlas es un proyecto independiente y no implica respaldo ni afiliación oficial con el IGC-UP o la Universidad de Panamá.
+
+## Mapa y último evento
+
+La franja «Última alerta» muestra el evento más reciente de todo el catálogo IGC-UP, independientemente de los filtros. Es información del catálogo, no un aviso oficial de emergencia. Su botón abre el evento en el mapa y, si los filtros lo ocultan, los restablece para mostrarlo. El control «Ampliar mapa» permite dedicar todo el ancho al mapa.
