@@ -117,25 +117,33 @@ def download_events(attempts=3):
         started = time.monotonic()
         try:
             with urllib.request.urlopen(request, timeout=25) as resp:
+                http_status = getattr(resp, 'status', 200)
                 charset = resp.headers.get_content_charset() or 'utf-8'
                 raw = resp.read(5_000_001)
                 if len(raw) > 5_000_000:
                     raise ValueError('La respuesta oficial supera el límite de 5 MB')
                 events = parse(raw.decode(charset, errors='replace'))
             print(f'GET oficial: intento {attempt}/{attempts}, '
-                  f'{time.monotonic() - started:.1f}s, {len(events)} sismos', flush=True)
+                  f'HTTP {http_status}, {time.monotonic() - started:.1f}s, {len(events)} sismos', flush=True)
             return events
         except urllib.error.HTTPError as exc:
             if exc.code not in (408, 429, 500, 502, 503, 504):
+                print(f'GET oficial: intento {attempt}/{attempts}, HTTP {exc.code}, '
+                      f'{time.monotonic() - started:.1f}s; error no reintentable',
+                      file=sys.stderr, flush=True)
                 raise
             error = exc
         except (OSError, IncompleteRead) as exc:
             error = exc
         if attempt == attempts:
+            print(f'GET oficial: intento {attempt}/{attempts} falló ({error}); '
+                  f'{time.monotonic() - started:.1f}s; intentos agotados',
+                  file=sys.stderr, flush=True)
             raise error
         delay = 2 ** attempt
         print(f'GET oficial: intento {attempt}/{attempts} falló ({error}); '
-              f'reintento en {delay}s', file=sys.stderr, flush=True)
+              f'{time.monotonic() - started:.1f}s; reintento en {delay}s',
+              file=sys.stderr, flush=True)
         time.sleep(delay)
 
 
@@ -159,7 +167,7 @@ if __name__=='__main__':
     else:
         try:
             main()
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, IncompleteRead) as exc:
             print(f'ERROR: no se actualizó el catálogo; se conserva la copia anterior. {exc}',
                   file=sys.stderr)
             sys.exit(1)

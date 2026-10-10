@@ -1,0 +1,80 @@
+(()=>{
+ 'use strict';
+ const get=id=>document.getElementById(id);
+ const dialog=get('diagnosticDialog');
+ const repo='https://github.com/antoniorinaudo/Atlas';
+ const api='https://api.github.com/repos/antoniorinaudo/Atlas/actions/workflows/actualizar-sismos.yml/runs';
+ const entries=[];
+ let backend=null,runs=null,apiIssue='',backendIssue='',checkedAt=null,nextCheck=0,busy=false,timer=null;
+ const time=iso=>{const d=new Date(iso);return iso&&Number.isFinite(d.getTime())?new Intl.DateTimeFormat('es-PA',{timeZone:'America/Panama',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d):'Sin registro todavía'};
+ const age=iso=>iso?Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000)):null;
+ const eventName=event=>({schedule:'Automática',workflow_dispatch:'Manual',push:'Cambio de código'})[event]||event||'Sin información';
+ const statusName=run=>run.status!=='completed'?({queued:'En cola',in_progress:'En ejecución',waiting:'Esperando',requested:'Solicitada',pending:'Pendiente'})[run.status]||run.status:({success:'Correcta',failure:'Falló',cancelled:'Cancelada',timed_out:'Tiempo agotado',skipped:'Omitida',action_required:'Requiere atención'})[run.conclusion]||run.conclusion||'Finalizada';
+ function browserLog(){get('diagnosticBrowserLog').textContent=entries.length?entries.map(e=>`${time(e.at)} · ${e.level.toUpperCase()} · ${e.message}`).join('\n'):'Todavía no hay consultas registradas en esta pestaña.'}
+ window.atlasDiagnostics={
+  catalog:null,
+  log(level,message){entries.push({at:new Date().toISOString(),level,message:String(message).slice(0,2500)});if(entries.length>50)entries.shift();if(dialog.open)browserLog()},
+  setCatalog(catalog){this.catalog=catalog;if(dialog.open)render()},
+ };
+ function render(){
+  const catalog=window.atlasDiagnostics.catalog;
+  const fetched=catalog?.fetched_at_utc||backend?.fetched_at_utc;
+  get('diagnosticDataTime').textContent=time(fetched)+' (Panamá)';
+  const minutes=age(fetched);
+  get('diagnosticDataDetail').textContent=fetched?`${catalog?.event_count??backend?.event_count??'—'} registros · descarga hace ${minutes} min${catalog?.snapshot?' · captura inicial':''}. Leer el archivo correctamente no significa que tenga datos nuevos.`:'Esperando la primera lectura del archivo de datos.';
+  get('diagnosticSourceStatus').textContent=backend?.status==='success'?'Descarga oficial correcta':backend?.status==='failure'?'Falló la descarga oficial':'Registro no disponible';
+  get('diagnosticSourceDetail').textContent=backend?.checked_at_utc?`${time(backend.checked_at_utc)} (Panamá) · Inicio: ${eventName(backend.event)}. Este registro corresponde a la última descarga publicada.${backendIssue?' La consulta actual del registro falló; se muestra la copia leída anteriormente.':''}`:backendIssue||'El registro estará disponible tras el próximo despliegue.';
+  get('diagnosticSourceLog').textContent=Array.isArray(backend?.logs)?backend.logs.map(String).join('\n'):backendIssue||'Sin registro publicado.';
+  const note=get('diagnosticSummary');
+  const automatic=runs?.find(r=>r.event==='schedule');
+  if(!runs){note.textContent=apiIssue||'Consultando el historial de GitHub…';note.dataset.tone=apiIssue?'warning':'normal'}
+  else if(!automatic){note.textContent=`No aparecen ejecuciones automáticas en ${runs.length===1?'la última ejecución consultada':'las últimas '+runs.length+' ejecuciones consultadas'}. Las manuales y los cambios de código sí pueden actualizar el sitio. Esto no demuestra un bloqueo de la fuente.`;note.dataset.tone='warning'}
+  else if(automatic.status!=='completed'){note.textContent=`La última ejecución automática está ${statusName(automatic).toLowerCase()}. Puedes abrirla para revisar sus pasos.`;note.dataset.tone='normal'}
+  else if(automatic.conclusion!=='success'){note.textContent='La última ejecución automática no terminó correctamente. Abre sus registros en GitHub para identificar el paso que falló.';note.dataset.tone='warning'}
+  else if(age(automatic.created_at)>30){note.textContent=`La última ejecución automática comenzó hace ${age(automatic.created_at)} minutos. Aunque haya datos recientes por una actualización manual, el inicio programado puede estar atrasado.`;note.dataset.tone='warning'}
+  else if(minutes>30||catalog?.snapshot){note.textContent='Hay una ejecución automática correcta en el historial, pero la copia que muestra esta pestaña está atrasada. Compara las horas de descarga y publicación.';note.dataset.tone='warning'}
+  else{note.textContent='Hay una ejecución automática correcta en el historial y la copia de datos tiene menos de 30 minutos.';note.dataset.tone='normal'}
+  if(apiIssue&&runs){note.textContent+=' La consulta más reciente a GitHub falló; el historial mostrado es de la consulta anterior.';note.dataset.tone='warning'}
+  get('diagnosticApiDetail').textContent=apiIssue|| (checkedAt?`Historial consultado el ${time(checkedAt)} (Panamá). Esta consulta no ejecuta el workflow.`:'Consulta pública de GitHub, sin claves.');
+  get('diagnosticApiDetail').classList.toggle('diagnostic-error',!!apiIssue);
+  const list=get('diagnosticRuns');list.replaceChildren();
+  if(runs){for(const run of runs){
+   const row=document.createElement('div');row.className='diagnostic-run';
+   const link=document.createElement('a');link.textContent=`#${run.run_number||run.id} · ${eventName(run.event)}`;link.href=`${repo}/actions/runs/${run.id}`;link.target='_blank';link.rel='noopener noreferrer';
+   const status=document.createElement('span');status.className='diagnostic-status';status.dataset.status=run.conclusion||run.status;status.textContent=statusName(run);
+   const title=document.createElement('small');title.textContent=(run.display_title||run.name||'Actualizar atlas').slice(0,240);
+   const meta=document.createElement('small');meta.textContent=`Inicio: ${time(run.created_at)} · Finalización: ${run.status==='completed'?time(run.updated_at):'pendiente'} · Panamá`;
+   row.append(link,status,title,meta);list.append(row);
+  }}
+  browserLog();updateButton();
+ }
+ function updateButton(){const seconds=Math.ceil((nextCheck-Date.now())/1000);const button=get('diagnosticCheck');button.disabled=busy||seconds>0;button.textContent=busy?'Consultando…':seconds>0?`Consultar en ${seconds}s`:'Consultar de nuevo'}
+ async function readBackend(){
+  try{const response=await fetchWithTimeout('./diagnostico.json?t='+Date.now(),new AbortController());const body=await response.json();if(!['success','failure','pending'].includes(body.status))throw Error('Formato de registro no reconocido');backend=body;backendIssue=''}
+  catch(error){backendIssue='No se pudo leer el registro publicado: '+error.message;window.atlasDiagnostics.log('error',backendIssue)}
+ }
+ async function readActions(){
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);
+  try{
+   const response=await fetch(api+'?branch=main&per_page=20&_t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github+json'},signal:controller.signal});
+   const remaining=response.headers.get('x-ratelimit-remaining');
+   const reset=Number(response.headers.get('x-ratelimit-reset'))*1000;
+   if(!response.ok){
+    if((response.status===403&&remaining==='0')||response.status===429){if(reset>Date.now())nextCheck=Math.max(nextCheck,reset);throw Error(`HTTP ${response.status}: límite de consultas a la API de GitHub${reset>Date.now()?'; disponible desde '+time(reset)+' (Panamá)':''}. Este límite del panel no confirma un bloqueo del colector.`)}
+    throw Error('HTTP '+response.status+' al consultar las ejecuciones');
+   }
+   const body=await response.json();if(!Array.isArray(body.workflow_runs))throw Error('Historial no reconocido');
+   runs=body.workflow_runs.filter(r=>Number.isSafeInteger(r.id)).slice(0,20);checkedAt=new Date().toISOString();apiIssue='';
+   window.atlasDiagnostics.log('ok',`API GitHub: HTTP ${response.status} · ${runs.length} ejecuciones${remaining!==null?' · consultas restantes: '+remaining:''}`);
+  }catch(error){apiIssue='No se pudo consultar GitHub: '+(error.name==='AbortError'?'tiempo agotado':error.message);window.atlasDiagnostics.log('error',apiIssue)}
+  finally{clearTimeout(timeout)}
+ }
+ async function check(){if(busy||Date.now()<nextCheck)return;busy=true;nextCheck=Date.now()+60000;render();await Promise.allSettled([readBackend(),readActions()]);busy=false;render()}
+ get('diagnosticOpen').onclick=()=>{closeEventPopup();dialog.showModal();render();timer=setInterval(updateButton,1000);check()};
+ get('diagnosticClose').onclick=()=>dialog.close();
+ dialog.addEventListener('close',()=>{clearInterval(timer);timer=null;get('diagnosticOpen').focus({preventScroll:true})});
+ dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close()}});
+ get('diagnosticCheck').onclick=check;
+ get('diagnosticDownload').onclick=()=>download('diagnostico-atlas.json',JSON.stringify({generated_at_utc:new Date().toISOString(),catalog:window.atlasDiagnostics.catalog,collector:backend,actions_checked_at_utc:checkedAt,actions_error:apiIssue||null,runs,browser_logs:entries},null,2),'application/json');
+ window.atlasDiagnostics.log('info','Pestaña abierta. Los registros del navegador empiezan en esta sesión.');
+})();

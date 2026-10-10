@@ -34,14 +34,17 @@ jobs:
       - name: Consultar tabla del Instituto de Geociencias
         id: sincronizar
         continue-on-error: true
+        shell: bash
         run: |
           # Conservar el JSON anterior si la página oficial no responde.
-          python scripts/actualizar_sismos.py
+          set -o pipefail
+          python scripts/actualizar_sismos.py 2>&1 | tee actualizacion.log
       - name: Mostrar resultado de la descarga
         if: ${{ !cancelled() }}
         env:
           SYNC_OUTCOME: ${{ steps.sincronizar.outcome }}
         run: |
+          python scripts/generar_diagnostico.py
           if [ "$SYNC_OUTCOME" = "success" ]; then
             echo "Descarga oficial correcta: $(jq -r .fetched_at_utc sismos.json) (UTC)." >> "$GITHUB_STEP_SUMMARY"
             echo "Registros: $(jq '.events | length' sismos.json)." >> "$GITHUB_STEP_SUMMARY"
@@ -51,17 +54,17 @@ jobs:
           fi
       - name: Guardar la última descarga en el repositorio
         run: |
-          if ! git diff --quiet -- sismos.json; then
+          if ! git diff --quiet -- sismos.json diagnostico.json; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add sismos.json
-            git commit -m "Actualizar catálogo sísmico oficial"
+            git add sismos.json diagnostico.json
+            git commit -m "Actualizar catálogo y diagnóstico de descarga"
             git push origin HEAD:main
           fi
       - name: Preparar página estática
         run: |
           mkdir -p web
-          cp index.html sismos.json web/
+          cp index.html sismos.json diagnostico.json web/
           cp -R assets web/
           touch web/.nojekyll
       - name: Configurar GitHub Pages

@@ -28,12 +28,21 @@ GitHub Actions **no garantiza periodicidad exacta**; los disparadores programado
 | --- | --- |
 | `index.html` | Atlas 2D/3D y fichas emergentes, responsive, independiente de paquetes externos |
 | `sismos.json` | Captura inicial, sustituida en cada ejecución cuando IGC-UP responde |
+| `diagnostico.json` | Resultado y registro de la última descarga publicada |
+| `assets/diagnostico.js`, `assets/diagnostico.css` | Panel de diagnóstico y consulta pública del historial de Actions |
 | `scripts/actualizar_sismos.py` | Descarga del HTML y extracción de la tabla a JSON |
+| `scripts/generar_diagnostico.py` | Genera el registro público de descarga, sin credenciales |
 | `.github/workflows/actualizar-sismos.yml` | Actualización, build y publicación cada 10 minutos, también en `push` y a demanda del administrador |
 
 ### Controles para visitantes
 
 Los visitantes pueden pulsar un círculo del mapa 2D, un punto de 3D, o un evento de la lista para mostrar la ficha, cerrarla con × o `Escape`, copiar coordenadas, abrir el registro original, filtrar por magnitud/profundidad/fecha y exportar CSV o GeoJSON. **No pueden forzar una consulta de actualización**: solo las programaciones públicas del workflow y el temporizador de lectura del navegador refrescan datos.
+
+## Diagnóstico de actualización
+
+El botón **Diagnóstico de actualización**, al pie del sitio, muestra la fecha real de los datos, el registro publicado de la última descarga oficial (HTTP, duración, intentos y errores), las últimas 20 ejecuciones del workflow y las consultas de la pestaña actual. Distingue ejecuciones automáticas, manuales y por cambios de código. Cada ejecución enlaza con sus registros completos en GitHub; se puede descargar un informe JSON para analizarlo.
+
+El historial se consulta mediante la API pública de GitHub, sin credenciales, únicamente al abrir el panel o solicitar otra consulta, con al menos un minuto entre consultas. Si la API limita o rechaza la lectura, el panel lo indica por separado: ese error no prueba un bloqueo de la fuente sísmica. El panel no inicia workflows ni descargas oficiales. `diagnostico.json` se actualiza y publica en cada ejecución, incluso si la descarga falla; si GitHub no inicia una tarea, no se produce un nuevo registro. Los registros del navegador son de la sesión actual y se reinician al recargar.
 
 ## Licencia y créditos
 
