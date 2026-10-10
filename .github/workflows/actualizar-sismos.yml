@@ -5,8 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # 10 minutos, evitando el minuto 0 de mayor congestión
-    - cron: '3,13,23,33,43,53 * * * *'
+    # 10 minutos: 09, 19, 29, 39, 49 y 59; fuera del minuto 0.
+    # Cambio controlado para volver a registrar el disparador programado.
+    - cron: '9-59/10 * * * *'
 
 permissions:
   contents: write
@@ -25,6 +26,15 @@ jobs:
       name: github-pages
       url: ${{ steps.publicar.outputs.page_url }}
     steps:
+      - name: Registrar contexto de arranque
+        env:
+          ATLAS_EVENT: ${{ github.event_name }}
+          ATLAS_CRON: ${{ github.event.schedule }}
+          ATLAS_ACTOR: ${{ github.actor }}
+          ATLAS_REF: ${{ github.ref }}
+          ATLAS_WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          printf '%s\n' "Evento: $ATLAS_EVENT" "Cron recibido: ${ATLAS_CRON:-no programado}" "Actor: $ATLAS_ACTOR" "Rama: $ATLAS_REF" "Workflow: $ATLAS_WORKFLOW_REF"
       - name: Descargar repositorio
         uses: actions/checkout@v4
       - name: Preparar Python
@@ -43,6 +53,7 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           SYNC_OUTCOME: ${{ steps.sincronizar.outcome }}
+          ATLAS_TRIGGER_SCHEDULE: ${{ github.event.schedule }}
         run: |
           python scripts/generar_diagnostico.py
           if [ "$SYNC_OUTCOME" = "success" ]; then

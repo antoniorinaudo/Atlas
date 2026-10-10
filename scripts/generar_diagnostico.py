@@ -26,6 +26,10 @@ if __name__ == '__main__':
     log = (ROOT / 'actualizacion.log').read_text(encoding='utf-8', errors='replace')
     report = build_report(data, log, os.getenv('SYNC_OUTCOME', 'failure'),
                           os.getenv('GITHUB_RUN_ID', ''), os.getenv('GITHUB_EVENT_NAME', 'unknown'))
+    report['trigger_schedule'] = os.getenv('ATLAS_TRIGGER_SCHEDULE', '') or None
+    report['actor'] = os.getenv('GITHUB_ACTOR', '') or None
+    report['workflow_ref'] = os.getenv('GITHUB_WORKFLOW_REF', '') or None
+    report['commit_sha'] = os.getenv('GITHUB_SHA', '') or None
     temporary = ROOT / 'diagnostico.json.tmp'
     temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     temporary.replace(ROOT / 'diagnostico.json')
