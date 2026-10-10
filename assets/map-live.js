@@ -28,7 +28,7 @@
    additions.forEach(e=>newUntil.set(identity(e),Date.now()+90000));
    noticeKey=identity(e);notice.hidden=false;
    get('mapNoticeText').textContent=`${additions.length?'Nuevo registro':'Registro revisado'} · M ${e.mag.toFixed(1)} · ${e.region} · ${eventAgeLabel(e)}`;
-   log('info',`${additions.length?'Nuevo registro':'Revisión'} recibido sin recargar: M ${e.mag.toFixed(1)} · ${e.time} Panamá`);
+   log('info',`${additions.length?'Nuevo registro':'Revisión'} recibido sin recargar: M ${e.mag.toFixed(1)} · ${formatLocalTime(e.time)} Panamá`);
   }
  };
  function updatePulse(){
@@ -96,7 +96,7 @@
  const distance=points=>points.length>1?Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y):0;
  const isControl=target=>target.closest('button,a,input,select');
  function begin(){const points=[...pointers.values()];gesture={view:[...state.view],center:center(points),distance:distance(points),bounds:map.getBoundingClientRect()};window.atlasMap.isGesturing=true;surface.classList.add('dragging');hideMapHover();}
- function redraw(){map.setAttribute('viewBox',state.view.join(' '));}
+ function redraw(){map.setAttribute('viewBox',state.view.join(' '));renderLatestMapCard();}
  function candidatesAt(event,touch){
   const candidates=[];
   for(const node of map.querySelectorAll('.epicenter')){
@@ -159,7 +159,7 @@
    const button=document.createElement('button');button.className='nearby-event';
    const mag=document.createElement('strong');mag.textContent='M '+e.mag.toFixed(1);mag.style.color=rgb(e);
    const details=document.createElement('span'),title=document.createElement('b'),meta=document.createElement('small');
-   title.textContent=e.region;meta.textContent=`${dateShort(e.date)} · ${e.time} · ${e.depth} km · ${e.status}`;details.append(title,meta);button.append(mag,details);
+   title.textContent=e.region;meta.textContent=`${dateShort(e.date)} · ${formatLocalTime(e.time)} · ${e.depth} km · ${e.status}`;details.append(title,meta);button.append(mag,details);
    button.onclick=()=>{dialog.close();selectEvent(e.id,false,true);};get('nearbyEvents').append(button);
   }
   dialog.showModal();

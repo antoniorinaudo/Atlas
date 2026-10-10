@@ -2,6 +2,7 @@ import {buildPushPayload} from '@block65/webcrypto-web-push';
 const ORIGIN='https://antoniorinaudo.github.io';
 const hash=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),v=>v.toString(16).padStart(2,'0')).join('');
 export const eventKey=e=>[e.date,e.time,e.lat,e.lon].join('|');
+const pushClock12=time=>{const[hour,minute]=time.split(':');return `${Number(hour)%12||12}:${minute} ${Number(hour)>=12?'PM':'AM'}`;};
 export function initPush(sql){
  sql.exec('CREATE TABLE IF NOT EXISTS push_subscriptions (id TEXT PRIMARY KEY, subscription TEXT NOT NULL, token TEXT NOT NULL, min_mag REAL NOT NULL, created_at INTEGER NOT NULL, last_test INTEGER NOT NULL DEFAULT 0)');
  sql.exec('CREATE TABLE IF NOT EXISTS push_outbox (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, payload TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, due INTEGER NOT NULL, expires INTEGER NOT NULL)');
@@ -88,7 +89,7 @@ export async function queueNewEvents(sql,before,after,now=Date.now()){
  for(const sub of sql.exec('SELECT id,min_mag FROM push_subscriptions').toArray()){
   const matching=added.filter(e=>e.mag>=sub.min_mag).sort((a,b)=>[b.date,b.time].join('T').localeCompare([a.date,a.time].join('T')));if(!matching.length)continue;
   const e=matching[0],id=await hash(sub.id+'|'+eventKey(e));
-  const payload={title:`M ${e.mag.toFixed(1)} · Nuevo registro IGC–UP`,body:`${e.region.slice(0,190)} · ${e.date} ${e.time.slice(0,5)} Panamá · ${e.depth} km.${matching.length>1?' '+matching.length+' registros nuevos.':''} Aviso informativo.`,tag:'atlas-'+id.slice(0,24),event:eventKey(e),timestamp:Date.parse(e.date+'T'+e.time+'-05:00')};
+  const payload={title:`M ${e.mag.toFixed(1)} · Nuevo registro IGC–UP`,body:`${e.region.slice(0,190)} · ${e.date} ${pushClock12(e.time)} Panamá · ${e.depth} km.${matching.length>1?' '+matching.length+' registros nuevos.':''} Aviso informativo.`,tag:'atlas-'+id.slice(0,24),event:eventKey(e),timestamp:Date.parse(e.date+'T'+e.time+'-05:00')};
   sql.exec('INSERT OR IGNORE INTO push_outbox(id,recipient,payload,due,expires) VALUES(?,?,?,?,?)',id,sub.id,JSON.stringify(payload),now,now+1800000);queued++;
  }
  return queued;

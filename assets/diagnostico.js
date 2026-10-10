@@ -6,7 +6,7 @@
  const api='https://api.github.com/repos/antoniorinaudo/Atlas/actions/workflows/actualizar-sismos.yml/runs';
  const entries=[];
  let backend=null,runs=null,apiIssue='',backendIssue='',checkedAt=null,nextCheck=0,busy=false,timer=null;
- const time=iso=>{const d=new Date(iso);return iso&&Number.isFinite(d.getTime())?new Intl.DateTimeFormat('es-PA',{timeZone:'America/Panama',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d):'Sin registro todavía'};
+ const time=iso=>{const d=new Date(iso);return iso&&Number.isFinite(d.getTime())?formatPanamaStamp(iso,true):'Sin registro todavía'};
  const age=iso=>iso?Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000)):null;
  const eventName=event=>({alarm:'Servicio automático',schedule:'Programación anterior',bootstrap:'Inicialización verificada',workflow_dispatch:'Manual',push:'Cambio de código'})[event]||event||'Sin información';
  const statusName=run=>run.status!=='completed'?({queued:'En cola',in_progress:'En ejecución',waiting:'Esperando',requested:'Solicitada',pending:'Pendiente'})[run.status]||run.status:({success:'Correcta',failure:'Falló',cancelled:'Cancelada',timed_out:'Tiempo agotado',skipped:'Omitida',action_required:'Requiere atención'})[run.conclusion]||run.conclusion||'Finalizada';

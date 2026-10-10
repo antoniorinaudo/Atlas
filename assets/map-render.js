@@ -1,9 +1,9 @@
 function eventIdentity(e){return [e.date,e.time,e.lat,e.lon].join('|');}
 function eventAgeLabel(e){
  const delta=Date.now()-Date.parse(e.date+'T'+e.time+'-05:00');
- if(!Number.isFinite(delta)||delta<0)return e.time.slice(0,5)+' · Panamá';
+ if(!Number.isFinite(delta)||delta<0)return formatLocalTime(e.time,false)+' · Panamá';
  const minutes=Math.floor(delta/60000);
- return minutes<1?'hace menos de 1 min':minutes<60?'hace '+minutes+' min':minutes<1440?'hace '+Math.floor(minutes/60)+' h':dateShort(e.date)+' · '+e.time.slice(0,5);
+ return minutes<1?'hace menos de 1 min':minutes<60?'hace '+minutes+' min':minutes<1440?'hace '+Math.floor(minutes/60)+' h':dateShort(e.date)+' · '+formatLocalTime(e.time,false);
 }
 function markerMetricsPx(mag,mobile=matchMedia('(max-width:630px)').matches){
  const scale=Math.pow(Math.max(0,Math.min(9,mag))/9,1.1);
@@ -15,6 +15,7 @@ function renderMap(){
  const svg=$('geoMap'),bounds=svg.getBoundingClientRect();if(!bounds.width||!bounds.height)return;
  const mobile=matchMedia('(max-width:630px)').matches,k=Math.max(bounds.width/state.view[2],bounds.height/state.view[3],.01);
  svg.setAttribute('viewBox',state.view.join(' '));
+ renderLatestMapCard();
  const left=state.view[0]+(state.view[2]-bounds.width/k)/2,top=state.view[1]+(state.view[3]-bounds.height/k)/2;
  const latest=latestCatalogEvent(),labelsOn=window.atlasMap?.labelsVisible!==false;
  const toScreen=e=>({x:(x(e.lon)-left)*k,y:(y(e.lat)-top)*k});
@@ -26,7 +27,7 @@ function renderMap(){
   const age=Date.now()-Date.parse(e.date+'T'+e.time+'-05:00');
   const recent=!latestIsSnapshot&&lastSuccessAt&&Date.now()-Date.parse(lastSuccessAt)<5*60000&&age>=0&&age<30*60000;
   const newlyPublished=!!window.atlasLiveUI?.isNew(e);
-  const name=`${isLatest?'Último registro · ':''}M ${e.mag.toFixed(1)} · ${e.region} · ${e.depth} km · ${e.time.slice(0,5)} Panamá`;
+  const name=`${isLatest?'Último registro · ':''}M ${e.mag.toFixed(1)} · ${e.region} · ${e.depth} km · ${formatLocalTime(e.time,false)} Panamá`;
   contents+=`<g class="point epicenter ${isLatest?'latest-event':''} ${newlyPublished?'new-event':''}" data-id="${e.id}" role="button" tabindex="0" aria-label="${escaped(name)}">`;
   if((isLatest&&recent)||newlyPublished)contents+=`<circle class="latest-pulse" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r+5/k}" style="stroke-width:${1.5/k}"/>`;
   if(e.mag>=6)contents+=`<circle class="marker-halo" cx="${x(e.lon)}" cy="${y(e.lat)}" r="${r*1.55}" fill="${c}"/>`;
@@ -36,7 +37,7 @@ function renderMap(){
   contents+='</g>';
  }
  const intersects=(a,b)=>a.x<b.x+b.w+5&&a.x+a.w+5>b.x&&a.y<b.y+b.h+5&&a.y+a.h+5>b.y;
- const reserved=[...document.querySelectorAll('.map-info,.map-ctrl,.map-legend')].filter(el=>el.offsetParent).map(el=>{const b=el.getBoundingClientRect();return{x:b.left-bounds.left,y:b.top-bounds.top,w:b.width,h:b.height};});
+ const reserved=[...document.querySelectorAll('.map-info,.map-ctrl,.map-legend,#mapLatestHover')].filter(el=>el.offsetParent&&!el.hidden).map(el=>{const b=el.getBoundingClientRect();return{x:b.left-bounds.left,y:b.top-bounds.top,w:b.width,h:b.height};});
  const selected=visible.find(e=>e.id===state.selected);
  const priorities=[latest&&visible.find(e=>e.id===latest.id),selected,...(labelsOn?visible.filter(e=>e.mag>=5).sort((a,b)=>b.mag-a.mag):[])].filter(Boolean);
  const seen=new Set();let labelCount=0;
@@ -59,7 +60,7 @@ function renderMap(){
   reserved.push(best);labelCount++;
   const bx=left+best.x/k,by=top+best.y/k,ww=w/k,hh=h/k;
   const title=isLatest?'ÚLTIMO · M '+e.mag.toFixed(1):isSelected?'SELECCIÓN · M '+e.mag.toFixed(1):'M '+e.mag.toFixed(1);
-  const sub=isLatest?eventAgeLabel(e):e.depth+' km · '+e.time.slice(0,5);
+  const sub=isLatest?eventAgeLabel(e):e.depth+' km · '+formatLocalTime(e.time,false);
   contents+=`<g class="point magnitude-tag ${isLatest?'latest-tag':isSelected?'selected-tag':'strong-tag'}" data-id="${e.id}" role="button" tabindex="0" aria-label="Abrir ${escaped(title+' · '+e.region)}"><line class="latest-leader" x1="${x(e.lon)}" y1="${y(e.lat)}" x2="${bx+ww/2}" y2="${by+hh/2}" style="stroke-width:${1/k}"/><rect class="magnitude-label-bg" x="${bx}" y="${by}" width="${ww}" height="${hh}" rx="${9/k}" style="stroke-width:${1/k}"/><text class="magnitude-label-title" x="${bx+ww/2}" y="${by+17/k}" text-anchor="middle" style="font-size:${12/k}px">${title}</text>${isLatest||isSelected?`<text class="magnitude-label-detail" x="${bx+ww/2}" y="${by+32/k}" text-anchor="middle" style="font-size:${10/k}px">${escaped(sub)}</text>`:''}</g>`;
  }
  $('mapMarkers').innerHTML=contents;

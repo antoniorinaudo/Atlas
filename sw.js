@@ -1,5 +1,5 @@
-const CACHE='atlas-mobile-pwa-20261010-2',VERSION='?v=20261010-all-magnitudes2';
-const files=['./','manifest.webmanifest','assets/icon-192.png','assets/icon-512.png',...['config.js','diagnostico.js','diagnostico.css','map-live.js','map-render.js','map-live.css','pwa.js','pwa.css'].map(file=>'assets/'+file+VERSION)];
+const CACHE='atlas-mobile-pwa-20261010-3',VERSION='?v=20261010-pinned-latest3';
+const files=['./','manifest.webmanifest','assets/icon-192.png','assets/icon-512.png',...['config.js','time-format.js','map-cards.js','diagnostico.js','diagnostico.css','map-live.js','map-render.js','map-live.css','pwa.js','pwa.css'].map(file=>'assets/'+file+VERSION)];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(files)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('atlas-mobile-pwa-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{

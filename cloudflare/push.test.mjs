@@ -32,6 +32,7 @@ test('No avisa la carga inicial, revisiones o rellenos históricos; aplica magni
  assert.equal(await queueNewEvents(sql,[event()],[event(),event('12:01:00',4.9)],now),0);
  const after=[event(),event('12:01:00',5.5)];assert.equal(await queueNewEvents(sql,[event()],after,now),1);await queueNewEvents(sql,[event()],after,now);
  const rows=sql.exec('SELECT * FROM push_outbox').toArray();assert.equal(rows.length,1);assert.match(JSON.parse(rows[0].payload).title,/5.5/);assert.match(JSON.parse(rows[0].payload).body,/Aviso informativo/);
+ assert.match(JSON.parse(rows[0].payload).body,/12:01 PM Panamá/);
 });
 test('Cifra el mensaje y firma VAPID; reintenta fallos y elimina suscripciones caducadas',async()=>{
  const{sql,env,subscription,req,signing}=await setup();let captured;
