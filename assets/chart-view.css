@@ -1,0 +1,6 @@
+/* A second view inside the existing map slot. */
+.graph-switch{flex:none;min-height:30px;padding:6px 9px;border:1px solid #3d6879;border-radius:8px;background:#163746;color:#dff6fa;font:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}.graph-switch[aria-pressed=true]{background:#215552;border-color:#75d8c8}.graph-switch:focus-visible{outline:2px solid #9affdc;outline-offset:2px}
+.graph-view{position:absolute;inset:0;display:flex;flex-direction:column;background:#0a2432}.graph-view[hidden]{display:none}.magnitude-chart{flex:1;min-height:0;width:100%;touch-action:none}.chart-status{margin:0;padding:8px 14px 12px;border-top:1px solid #294657;color:#adcbd6;font-size:11px;line-height:1.5;flex:none}.sequence-note{font-size:11px;line-height:1.5;margin:10px 0 0;color:#a4c6d2}.sequence-note[hidden]{display:none}
+#periodChips .chip:last-child{grid-column:auto}.map-panel.chart-mode .map-gesture-hint,.map-panel.chart-mode .mobile-map-help{display:none}
+@media(pointer:coarse){.graph-switch{min-height:44px}}
+@media(max-width:630px){.graph-switch{min-height:44px;font-size:10px;padding:6px 8px}.map-toolbar h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chart-status{font-size:10px;padding:7px 10px 10px}}

@@ -69,7 +69,7 @@ El cron anterior de GitHub se retiró: la actualización de datos ya no depende 
 
 ### Controles para visitantes
 
-Los visitantes pueden pulsar un círculo del mapa 2D, un punto de 3D, o un evento de la lista para mostrar la ficha, cerrarla con × o `Escape`, copiar coordenadas, abrir el registro original, filtrar por magnitud/profundidad/fecha y exportar CSV o GeoJSON. No pueden forzar una descarga de la fuente oficial: la realiza el servicio central. El canal entrega cambios y el temporizador HTTP comprueba la copia guardada si se pierde la conexión.
+Los visitantes pueden pulsar un círculo del mapa 2D, un punto de 3D, o un evento de la lista para mostrar la ficha, cerrarla con × o `Escape`, copiar coordenadas, abrir el registro original, filtrar por período, estado y localidad, y exportar CSV o GeoJSON. No pueden forzar una descarga de la fuente oficial: la realiza el servicio central. El canal entrega cambios y el temporizador HTTP comprueba la copia guardada si se pierde la conexión.
 
 ## Diagnóstico de actualización
 
@@ -110,3 +110,13 @@ La API `/push/public-key` expone únicamente la clave pública VAPID. `/push/sub
 Para configurar otro Worker, genera claves VAPID y usa `wrangler secret put VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT`. Instala la dependencia fijada con `npm.cmd ci --prefix cloudflare` antes de desplegar. No reemplaces las claves de una instalación activa sin planificar la renovación de suscripciones. `node --test cloudflare/worker.test.mjs cloudflare/push.test.mjs` verifica extracción, fallos, suscripciones, preferencias, cifrado, firma, cola y caducidad.
 
 Referencias: [Web Push en WebKit](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/), [push con Durable Objects](https://developers.cloudflare.com/agents/communication-channels/webhooks/push-notifications/) y [Web Crypto Web Push](https://github.com/block65/webcrypto-web-push).
+
+## Gráfico de magnitud y selección aproximada de réplicas
+
+El botón **Gráfico**, junto al título del mapa, alterna la vista dentro del mismo espacio. Conserva el zoom del mapa al volver. Los puntos representan magnitud frente a fecha y hora de Panamá (UTC−5); tocar un punto abre su ficha. El gráfico comparte el período, estado y localidad con el mapa, la lista y el resumen, y recibe los cambios del canal en vivo.
+
+La línea de tendencia es un ajuste lineal por mínimos cuadrados sobre los registros visibles, con el tiempo expresado en días. Es descriptiva, no una predicción. No se calcula con menos de dos fechas/horas distintas. Una selección sin eventos muestra un estado vacío.
+
+**Réplicas** es una selección aproximada solicitada para exploración: usa como referencia el evento de mayor magnitud de todo el catálogo disponible, siempre que alcance M 5, y muestra eventos estrictamente posteriores hasta 100 km de su epicentro, calculados con distancia geodésica sobre una esfera. En empates de magnitud se utiliza el primero cronológicamente. Excluye el sismo principal y los eventos anteriores o simultáneos. La institución no los ha clasificado como réplicas mediante esta herramienta; la referencia y el radio se muestran junto al filtro. Si no hay una referencia de M 5 o mayor, el filtro queda deshabilitado. Esta selección conserva los filtros de estado y localidad y se limita al catálogo disponible; no crea un archivo histórico.
+
+La vista y sus cálculos están en `assets/chart-view.js` y `assets/chart-view.css`; utilizan el motor Plotly ya incluido y no añaden solicitudes a servicios externos.
