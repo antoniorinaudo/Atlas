@@ -54,3 +54,12 @@ html,body{overflow-x:clip;overflow-y:visible}body{height:auto;min-height:100%}
  .shell>header .header-latest{position:relative;order:1;grid-column:1/-1;grid-row:2;flex-basis:100%;width:100%;min-height:48px;padding:6px 10px;border-radius:8px}.header-latest b{font-size:18px}.header-latest-copy span{font-size:11px}.header-latest-time{font-size:10px}
 }
 @media(max-width:630px){.main-grid .map-panel{margin-top:8px}}
+
+/* Compact seven-day activity strip; each whole column remains tappable. */
+.timeline-mobile-hint,.bar-mobile-count{display:none}
+button.bar-wrap{appearance:none;background:transparent;border:0;padding:0;font:inherit;color:inherit;text-align:center;min-width:0}
+.bar-wrap .bar{height:var(--activity-height);flex:none}.bar-label{white-space:nowrap}.bar-wrap:focus-visible{outline:2px solid #8de5d5;outline-offset:2px;border-radius:3px}
+@media(max-width:630px), (hover:none) and (pointer:coarse){
+ .bottom-strip{display:block;min-height:0;padding:8px 10px 10px;flex:none}.bottom-strip .strip-title{align-items:center;gap:8px;font-size:9px;line-height:12px;letter-spacing:.6px}.strip-title small{max-width:none;font-size:9px;line-height:12px;white-space:nowrap}.timeline-desktop-hint{display:none}.timeline-mobile-hint{display:inline}
+ .bottom-strip .bar-chart{height:54px;padding-top:4px;gap:4px}.bottom-strip .bar-wrap{min-height:44px;gap:2px}.bottom-strip .bar{height:calc(var(--activity-height) * .5)}.bottom-strip .bar-label{font-size:9px;line-height:10px;letter-spacing:0}.bar-desktop-count{display:none}.bar-mobile-count{display:block;font-size:10px;line-height:11px;font-variant-numeric:tabular-nums;color:#bedee8}.bar-wrap.active .bar-label,.bar-wrap.active .bar-mobile-count{color:#ffe1a6}
+}

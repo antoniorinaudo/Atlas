@@ -140,7 +140,7 @@
  installDialog.addEventListener('close',()=>{if(!installButton.hidden)installButton.focus({preventScroll:true});});
  installationControls();
  if('serviceWorker'in navigator&&isSecureContext){
-  navigator.serviceWorker.register('./sw.js?v=20261012-chart-sequence13',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
+  navigator.serviceWorker.register('./sw.js?v=20261012-mobile-activity14',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
    registration=reg;if(supported)subscription=await reg.pushManager.getSubscription();
    if(record?.pendingDelete){try{await api('unsubscribe',{id:record.id,token:record.token});record={minMagnitude:record.minMagnitude};save();}catch{}}
    availability();window.atlasPush.handleDeepLink();

@@ -57,7 +57,7 @@
   }}catch(error){get('chartStatus').textContent='No se pudo mostrar el gráfico. Puedes volver al mapa.';window.atlasDiagnostics?.log('error','Gráfico: '+error.message);console.error(error);}
   finally{drawing=false;}
  }
- function resize(){if(state.mode!=='chart')return;cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{renderChart();});}
+ function resize(){if(typeof state==='undefined'||state.mode!=='chart')return;cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{renderChart();});}
  new ResizeObserver(resize).observe(document.querySelector('.view-wrap'));
  window.atlasAnalysis={timestamp,reference,distanceKm,isAftershock,trend,sequenceControls,renderChart,resize,radiusKm:RADIUS_KM,minMainMagnitude:MIN_MAIN_MAG};
 })();
