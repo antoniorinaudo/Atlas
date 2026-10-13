@@ -24,12 +24,6 @@ function placeMapCard(panel,event,avoid=[]){
  return shown;
 }
 function renderLatestMapCard(){
- const panel=$('mapLatestHover'),event=latestCatalogEvent();
- if(!event||matchMedia('(max-width:630px), (hover:none) and (pointer:coarse)').matches){panel.hidden=true;return;}
- panel.hidden=false;panel.dataset.eventId=String(event.id);
- $('latestHoverMag').textContent='ÚLTIMO · M '+event.mag.toFixed(1);
- $('latestHoverRegion').textContent=event.region;
- $('latestHoverFacts').textContent=`${dateShort(event.date)} · ${formatLocalTime(event.time)} (Panamá) · ${event.depth} km · ${event.status}`;
- panel.hidden=!placeMapCard(panel,event);
+ // The latest event stays in the header; the map card only appears on hover.
+ $('mapLatestHover').hidden=true;
 }
-window.addEventListener('resize',()=>requestAnimationFrame(renderLatestMapCard));

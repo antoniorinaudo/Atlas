@@ -86,7 +86,7 @@
  window.atlasDistricts={matches,summary,layer,tap,districtFor,aggregate,contains,decode,get ready(){return ready;},get districts(){return districts;}};
  async function load(){
   try{
-   const response=await fetch('assets/distritos.json?v=20261013-districts-always18');if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(!Array.isArray(data.districts)||!data.districts.length)throw new Error('Cartografía vacía');
+   const response=await fetch('assets/distritos.json?v=20261013-map-clear19');if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(!Array.isArray(data.districts)||!data.districts.length)throw new Error('Cartografía vacía');
    if(data.scale!==1000000)throw new Error('Precisión cartográfica no compatible');
    districts=data.districts.map(d=>({...d,path:d.display.flatMap(p=>p.map(r=>{const ring=decode(r,data.scale);return 'M'+ring.map(pt=>x(pt[0]).toFixed(3)+','+y(pt[1]).toFixed(3)).join('L')+'Z';})).join('')}));byId=new Map(districts.map(d=>[d.id,d]));ready=true;render();
   }catch(error){get('districtScope').textContent='Cartografía no disponible';get('districtSummary').setAttribute('aria-busy','false');get('districtEmpty').textContent='No se pudieron cargar los límites. El catálogo sigue disponible.';get('districtEmpty').hidden=false;get('districtOutside').hidden=true;window.atlasDiagnostics?.log('warning','Distritos: '+error.message);}
