@@ -54,6 +54,18 @@ El cron anterior de GitHub se retiró: la actualización de datos ya no depende 
 
 ## Contenido
 
+### Distritos y resumen geográfico
+
+El botón **Distritos** activa una capa opcional de límites en el mapa 2D; comienza apagada. Las líneas son discretas, los nombres aparecen al acercar el zoom y se evita superponerlos a los controles. Tocar tierra con la capa activa selecciona un distrito, sin interferir con las fichas de epicentros ni el arrastre del mapa.
+
+Debajo de la actividad diaria, **Epicentros por distrito** muestra los cinco primeros con barras pequeñas. En móvil la franja se desliza horizontalmente; **Ver todos** amplía los distritos con registros. Seleccionar una fila filtra mapa, lista, gráfico, métricas e histograma y encuadra el distrito en 2D. El botón con el nombre y × quita la selección. El resumen conserva la comparación entre distritos para el período, estado y búsqueda vigentes, antes del filtro distrital; no cuenta únicamente los puntos que se ven en el encuadre del mapa. Las actualizaciones en vivo recalculan los números y conservan la selección y el zoom.
+
+Se comprueba cada coordenada contra los polígonos terrestres del **IGN Tommy Guardia / ANATI**, DPA 2025, límites actualizados a 2024, escala 1:25.000. La capa oficial contiene 83 unidades terrestres, incluyendo representaciones comarcales a nivel distrital: esta cantidad no debe presentarse como el número de municipios de Panamá. Se excluyen las geometrías cuyo uso es masa de agua. Los puntos sin coincidencia aparecen como **Fuera de distritos terrestres**; pueden estar en el mar, otro país o un área no cubierta. No se asignan al distrito más cercano ni se infieren distritos de la descripción del evento. Los conteos representan epicentros registrados, no población afectada ni intensidad percibida.
+
+La copia estática `assets/distritos.json` no consulta ANATI durante la visita y se incluye en la caché PWA. `scripts/preparar_distritos.py` permite regenerarla desde las consultas públicas oficiales. Las coordenadas de clasificación se conservan con precisión de seis decimales, sin generalizar los polígonos; únicamente las líneas dibujadas se generalizan a 0,00035 grados para reducir trabajo gráfico. Los anillos detallados se decodifican cuando una coordenada entra en su caja geográfica, evitando cargar todos los vértices en memoria al abrir el mapa. La clasificación conserva anillos interiores e islas. Los puntos exactamente sobre una frontera se cuentan una sola vez, según el primer código oficial. Es cartografía informativa y no una determinación legal de límites; puntos muy próximos a una frontera pueden cambiar de asignación con una revisión de las coordenadas o de la cartografía.
+
+Créditos y fuente: [División Política Administrativa — IGN Tommy Guardia](https://ignpanama.anati.gob.pa/index.php/25-cdepartamento/cdepartamentocartografia/268-division-politica-administrativa), [geometrías oficiales](https://sigigntg.anati.gob.pa/arcgisserver/rest/services/Distrito/MapServer/0), [atributos DPA 2025](https://sigigntg.anati.gob.pa/arcgisserver/rest/services/Mapa_Web_Divisi%C3%B3n_Pol%C3%ADtica_Administrativa_2025a_MIL1/MapServer/7). La licencia MIT del código propio no cambia los derechos de la cartografía oficial.
+
 | Archivo | Uso |
 | --- | --- |
 | `index.html` | Atlas 2D/3D y fichas emergentes, responsive, independiente de paquetes externos |

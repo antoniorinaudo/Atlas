@@ -79,4 +79,5 @@ function renderMap(){
   if(!fit)text.style.visibility='hidden';
  }
  document.querySelectorAll('.map-territory').forEach(el=>el.style.fontSize=15/k+'px');
+ window.atlasDistricts?.layer();
 }

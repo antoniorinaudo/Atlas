@@ -95,7 +95,7 @@
  const distance=points=>points.length>1?Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y):0;
  const isControl=target=>target.closest('button,a,input,select');
  function begin(){const points=[...pointers.values()];gesture={view:[...state.view],center:center(points),distance:distance(points),bounds:map.getBoundingClientRect()};window.atlasMap.isGesturing=true;surface.classList.add('dragging');hideMapHover();}
- function redraw(){map.setAttribute('viewBox',state.view.join(' '));resizeMarkersDuringZoom();renderLatestMapCard();}
+ function redraw(){map.setAttribute('viewBox',state.view.join(' '));resizeMarkersDuringZoom();renderLatestMapCard();window.atlasDistricts?.layer();}
  function candidatesAt(event,touch){
   const candidates=[];
   for(const node of map.querySelectorAll('.epicenter')){
@@ -167,6 +167,6 @@
   const tag=event.target.closest('.magnitude-tag');if(tag||tappedTag){const id=+(tag?.dataset.id||tappedTag);tappedTag=null;selectEvent(id,false,true);return;}
   const touch=(event.pointerType||lastPointer)==='touch',candidates=candidatesAt(event,touch);
   if(touch&&candidates.length>1&&candidates[1].d-candidates[0].d<6&&Math.hypot(candidates[0].cx-candidates[1].cx,candidates[0].cy-candidates[1].cy)<18){chooseNearby(candidates);return;}
-  if(candidates.length)selectEvent(candidates[0].id,false,true);else closeEventPopup();
+  if(candidates.length)selectEvent(candidates[0].id,false,true);else {closeEventPopup();window.atlasDistricts?.tap(event);}
  }
 })();
