@@ -4,3 +4,7 @@
 #periodChips .chip:last-child{grid-column:auto}.map-panel.chart-mode .map-gesture-hint,.map-panel.chart-mode .mobile-map-help{display:none}
 @media(pointer:coarse){.graph-switch{min-height:44px}}
 @media(max-width:630px){.graph-switch{min-height:44px;font-size:10px;padding:6px 8px}.map-toolbar h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chart-status{font-size:10px;padding:7px 10px 10px}}
+
+.chart-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:6px 14px 0;flex:none;color:#adcbd6;font-size:11px}.chart-controls>div{display:flex;gap:4px}.chart-controls button{min-height:30px;padding:5px 10px;border:1px solid #3d6879;border-radius:7px;background:#12303e;color:#dff6fa;font:inherit;font-weight:700;cursor:pointer}.chart-controls button[aria-pressed=true]{border-color:#75d8c8;background:#215552;color:#edfffb}.chart-controls button:focus-visible{outline:2px solid #9affdc;outline-offset:2px}
+@media(pointer:coarse){.chart-controls button{min-height:44px}}
+@media(max-width:630px){.chart-controls{padding:5px 10px 0;font-size:10px}.chart-controls button{min-height:44px;padding:6px 10px}}

@@ -1,6 +1,6 @@
 (()=>{
  'use strict';
- const DAY=86400000,RADIUS_KM=100,MIN_MAIN_MAG=5,LASSO_ALPHA=.10,get=id=>document.getElementById(id);
+ const DAY=86400000,RADIUS_KM=100,MIN_MAIN_MAG=5,LASSO_ALPHA=.10,LOWESS_FRACTION=.35,LOWESS_ITERATIONS=2,get=id=>document.getElementById(id);
  const timestamp=e=>Date.parse(e.date+'T'+e.time+'-05:00');
  function reference(events){return events.filter(e=>e.mag>=MIN_MAIN_MAG).reduce((best,e)=>!best||e.mag>best.mag||e.mag===best.mag&&timestamp(e)<timestamp(best)?e:best,null);}
  function distanceKm(a,b){
@@ -20,6 +20,52 @@
   const coefficient=Math.sign(covariance)*Math.max(0,Math.abs(covariance)-alpha),slope=coefficient/scale,intercept=meanY-slope*meanX,end=Math.max(...xs);
   return {model:'LASSO',alpha,standardizedCoefficient:coefficient,timeScaleDays:scale,start:origin,end:origin+end*DAY,startMag:intercept,endMag:intercept+slope*end,slopePerDay:slope};
  }
+ // Local linear LOWESS with tricube distance weights and bisquare residual weights.
+ function lowess(events,fraction=LOWESS_FRACTION,iterations=LOWESS_ITERATIONS){
+  if(!Number.isFinite(fraction)||fraction<=0||fraction>1)throw new RangeError('El suavizado LOWESS debe estar entre 0 y 1');
+  if(!Number.isInteger(iterations)||iterations<0||iterations>10)throw new RangeError('Número de iteraciones LOWESS inválido');
+  if(events.length<2)return null;
+  const rows=[...events].sort((a,b)=>timestamp(a)-timestamp(b)),origin=timestamp(rows[0]),xs=rows.map(e=>(timestamp(e)-origin)/DAY),ys=rows.map(e=>e.mag),n=xs.length;
+  if(xs[n-1]===xs[0])return null;
+  const queries=[...new Set(xs)],queryIndex=new Map(queries.map((x,i)=>[x,i])),count=Math.min(n,Math.max(3,Math.ceil(n*fraction)));
+  let cursor=0;
+  const neighborhoods=queries.map(q=>{
+   while(cursor+count<n&&Math.abs(xs[cursor+count]-q)<Math.abs(xs[cursor]-q))cursor++;
+   const radius=Math.max(Math.abs(xs[cursor]-q),Math.abs(xs[cursor+count-1]-q));let left=cursor,right=cursor+count-1;
+   while(left>0&&Math.abs(xs[left-1]-q)<=radius)left--;
+   while(right+1<n&&Math.abs(xs[right+1]-q)<=radius)right++;
+   const neighbors=[];
+   for(let i=left;i<=right;i++){const delta=xs[i]-q,u=radius?Math.min(1,Math.abs(delta)/radius):0,weight=(1-u**3)**3;if(weight>0)neighbors.push([i,delta,weight]);}
+   return neighbors;
+  });
+  function estimate(neighbors,robust){
+   let sw=0,sx=0,sy=0,sxx=0,sxy=0;
+   for(const [i,d,kernel]of neighbors){const w=kernel*(robust?robust[i]:1);sw+=w;sx+=w*d;sy+=w*ys[i];sxx+=w*d*d;sxy+=w*d*ys[i];}
+   if(sw<=1e-12)return robust?estimate(neighbors,null):ys[neighbors[0][0]];
+   const variance=sxx-sx*sx/sw,slope=variance>Number.EPSILON*Math.max(sxx,1e-12)?(sxy-sx*sy/sw)/variance:0;
+   return sy/sw-slope*sx/sw;
+  }
+  let robust=null,fitted=[];
+  for(let pass=0;pass<=iterations;pass++){
+   fitted=neighborhoods.map(neighbors=>estimate(neighbors,robust));if(pass===iterations)break;
+   const residuals=ys.map((y,i)=>Math.abs(y-fitted[queryIndex.get(xs[i])])),sorted=[...residuals].sort((a,b)=>a-b),median=(sorted[Math.floor((n-1)/2)]+sorted[Math.floor(n/2)])/2,limit=6*median;
+   robust=residuals.map(r=>limit<=1e-12?(r<=1e-10?1:0):(1-Math.min(1,r/limit)**2)**2);
+   if(robust.every(w=>w===0))break;
+  }
+  return {model:'LOWESS',fraction,robustIterations:iterations,points:queries.map((q,i)=>({time:origin+q*DAY,mag:fitted[i]}))};
+ }
+ let trendMode='line',fitKey='',cachedFit=null;
+ try{if(localStorage.getItem('atlas-chart-trend-v1')==='lowess')trendMode='lowess';}catch{}
+ function trendControls(){
+  get('trendLine').setAttribute('aria-pressed',String(trendMode==='line'));
+  get('trendLowess').setAttribute('aria-pressed',String(trendMode==='lowess'));
+ }
+ function chooseTrend(mode){trendMode=mode;try{localStorage.setItem('atlas-chart-trend-v1',mode);}catch{}trendControls();if(state.mode==='chart')renderChart();}
+ get('trendLine').onclick=()=>chooseTrend('line');get('trendLowess').onclick=()=>chooseTrend('lowess');trendControls();
+ function fittedTrend(rows,mode){
+  const key=mode+'|'+rows.map(e=>e.date+'T'+e.time+':'+e.mag).join(';');
+  if(key!==fitKey){fitKey=key;cachedFit=mode==='lowess'?lowess(rows):trend(rows);}return cachedFit;
+ }
  function sequenceControls(){
   const main=reference(EVENTS),chip=document.querySelector('[data-period="aftershocks"]'),note=get('sequenceNote');
   chip.disabled=!main;chip.title=main?'Eventos posteriores a M '+main.mag.toFixed(1)+' y hasta '+RADIUS_KM+' km de su epicentro; selección aproximada':'No hay un sismo de referencia de M '+MIN_MAIN_MAG+' o mayor en este catálogo';
@@ -35,17 +81,17 @@
   try{while(dirty&&state.mode==='chart'){
    dirty=false;
    const key=state.period+'|'+state.status+'|'+state.query;if(key!==viewKey){viewKey=key;userXRange=null;userYRange=null;}
-   const rows=[...lastFilter].sort((a,b)=>timestamp(a)-timestamp(b)),fit=trend(rows),mobile=matchMedia('(max-width:630px)').matches;
+   const rows=[...lastFilter].sort((a,b)=>timestamp(a)-timestamp(b)),lowessMode=trendMode==='lowess',fit=fittedTrend(rows,trendMode),mobile=matchMedia('(max-width:630px)').matches;
    const traces=[{type:'scatter',mode:'markers',name:'Eventos',x:rows.map(e=>e.date+'T'+e.time),y:rows.map(e=>e.mag),customdata:rows.map(e=>[e.id,dateShort(e.date),formatLocalTime(e.time),escaped(e.region),e.depth,e.status]),hovertemplate:'<b>M %{y:.1f}</b><br>%{customdata[3]}<br>%{customdata[1]} · %{customdata[2]} Panamá<br>%{customdata[4]} km · %{customdata[5]}<extra></extra>',marker:{size:rows.map(e=>(mobile?7:6)+Math.max(0,e.mag-4)),color:rows.map(rgb),opacity:.88,line:{color:'#102b38',width:.7}}}];
-   if(fit)traces.push({type:'scatter',mode:'lines',name:'Tendencia LASSO',x:[localISO(fit.start),localISO(fit.end)],y:[fit.startMag,fit.endMag],hoverinfo:'skip',line:{color:'#85e6d0',width:2.5,dash:'dash'}});
+   if(fit)traces.push({type:'scatter',mode:'lines',name:lowessMode?'Tendencia LOWESS':'Tendencia LASSO',x:lowessMode?fit.points.map(p=>localISO(p.time)):[localISO(fit.start),localISO(fit.end)],y:lowessMode?fit.points.map(p=>p.mag):[fit.startMag,fit.endMag],hoverinfo:'skip',line:{color:'#85e6d0',width:2.5,dash:lowessMode?'solid':'dash',shape:'linear'}});
    const selected=rows.find(e=>e.id===state.selected);if(selected)traces.push({type:'scatter',mode:'markers',name:'Seleccionado',x:[selected.date+'T'+selected.time],y:[selected.mag],customdata:[[selected.id]],hoverinfo:'skip',marker:{size:13,color:'rgba(0,0,0,0)',line:{color:'#fff',width:2}}});
    const start=rows.length?timestamp(rows[0]):Date.parse(todayPanama()+'T00:00:00-05:00'),end=rows.length?timestamp(rows[rows.length-1]):start+DAY,span=end-start,pad=span?span*.03:1800000,left=start-pad,right=end+pad,count=mobile?3:6;
    const tickLeft=userXRange?rangeStamp(userXRange[0]):left,tickRight=userXRange?rangeStamp(userXRange[1]):right;
    const ticks=Array.from({length:count},(_,i)=>tickLeft+(tickRight-tickLeft)*i/(count-1));
    const layout={paper_bgcolor:'#0a2432',plot_bgcolor:'#0a2432',font:{family:'Inter, system-ui, sans-serif',size:mobile?10:12,color:'#bdd5df'},margin:{l:mobile?44:58,r:18,t:16,b:mobile?62:60},showlegend:false,hovermode:'closest',dragmode:'pan',uirevision:'atlas-chart|'+state.period+'|'+state.status+'|'+state.query,xaxis:{type:'date',title:{text:'Fecha · hora de Panamá',standoff:15},range:userXRange||[localISO(left),localISO(right)],tickvals:ticks.map(localISO),ticktext:ticks.map(t=>tickLabel(t,tickRight-tickLeft<DAY)),gridcolor:'#244957',zeroline:false,showline:true,linecolor:'#40616c',automargin:true},yaxis:{title:{text:'Magnitud',standoff:10},gridcolor:'#244957',zeroline:false,showline:true,linecolor:'#40616c',tickformat:'.1f',dtick:1,automargin:true},annotations:rows.length?[]:[{text:'Sin registros para estos filtros',xref:'paper',yref:'paper',x:.5,y:.5,showarrow:false,font:{size:14,color:'#a9c7d4'}}]};
    if(userYRange){layout.yaxis.range=userYRange;layout.yaxis.autorange=false;}
-   get('chartStatus').textContent=rows.length+' registros · '+(fit?'Puntos: eventos · Línea: LASSO (α='+fit.alpha.toFixed(2)+'), descriptiva, no una predicción.':'No hay fechas distintas suficientes para calcular una tendencia.');
-   const plot=get('magnitudeChart');await Plotly.react(plot,traces,layout,{responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:false});
+   get('chartStatus').textContent=rows.length+' registros · '+(fit?(lowessMode?'Curva: LOWESS (suavizado '+Math.round(fit.fraction*100)+'%).':'Recta: LASSO (α='+fit.alpha.toFixed(2)+').')+' Tendencia descriptiva, no una predicción.':'No hay fechas distintas suficientes para calcular una tendencia.');
+   const plot=get('magnitudeChart'),bounds=plot.getBoundingClientRect();layout.width=Math.max(1,Math.floor(bounds.width));layout.height=Math.max(1,Math.floor(bounds.height));await Plotly.react(plot,traces,layout,{responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:false});
    if(!plot.__atlasChartBound){plot.__atlasChartBound=true;plot.on('plotly_relayout',info=>{
     let changed=false;
     for(const axis of ['xaxis','yaxis']){
@@ -62,6 +108,6 @@
   finally{drawing=false;}
  }
  function resize(){if(typeof state==='undefined'||state.mode!=='chart')return;cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{renderChart();});}
- new ResizeObserver(resize).observe(document.querySelector('.view-wrap'));
- window.atlasAnalysis={timestamp,reference,distanceKm,isAftershock,trend,sequenceControls,renderChart,resize,radiusKm:RADIUS_KM,minMainMagnitude:MIN_MAIN_MAG,lassoAlpha:LASSO_ALPHA};
+ const chartResize=new ResizeObserver(resize);chartResize.observe(document.querySelector('.view-wrap'));chartResize.observe(get('magnitudeChart'));
+ window.atlasAnalysis={timestamp,reference,distanceKm,isAftershock,trend,lowess,sequenceControls,renderChart,resize,get trendMode(){return trendMode;},radiusKm:RADIUS_KM,minMainMagnitude:MIN_MAIN_MAG,lassoAlpha:LASSO_ALPHA,lowessFraction:LOWESS_FRACTION,lowessIterations:LOWESS_ITERATIONS};
 })();
