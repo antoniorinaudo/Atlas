@@ -56,7 +56,7 @@ El cron anterior de GitHub se retiró: la actualización de datos ya no depende 
 
 ### Distritos y resumen geográfico
 
-El botón **Distritos** activa una capa opcional de límites en el mapa 2D; comienza apagada. Las líneas son discretas, los nombres aparecen al acercar el zoom y se evita superponerlos a los controles. Tocar tierra con la capa activa selecciona un distrito, sin interferir con las fichas de epicentros ni el arrastre del mapa.
+Los límites distritales permanecen visibles en el mapa 2D desde que carga la cartografía, sin un botón para activarlos o esconderlos. Las líneas son discretas, los nombres aparecen al acercar el zoom y se evita superponerlos a los controles. Tocar tierra selecciona un distrito, sin interferir con las fichas de epicentros ni el arrastre del mapa.
 
 Debajo de la actividad diaria, **Epicentros por distrito** muestra los cinco primeros con barras pequeñas. En móvil la franja se desliza horizontalmente; **Ver todos** amplía los distritos con registros. Seleccionar una fila filtra mapa, lista, gráfico, métricas e histograma y encuadra el distrito en 2D. El botón con el nombre y × quita la selección. El resumen conserva la comparación entre distritos para el período, estado y búsqueda vigentes, antes del filtro distrital; no cuenta únicamente los puntos que se ven en el encuadre del mapa. Las actualizaciones en vivo recalculan los números y conservan la selección y el zoom.
 

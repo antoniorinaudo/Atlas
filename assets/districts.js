@@ -1,7 +1,7 @@
 (()=>{
  'use strict';
  const get=id=>document.getElementById(id),OUTSIDE='outside';
- let districts=[],byId=new Map(),ready=false,enabled=false,expanded=false,counts=[],lastSummaryKey='',lastLayerKey='';
+ let districts=[],byId=new Map(),ready=false,expanded=false,counts=[],lastSummaryKey='',lastLayerKey='';
  const assignments=new Map();
  function decode(text,scale,flat=false){
   const ring=[];let cursor=0,lon=0,lat=0;
@@ -52,16 +52,14 @@
  function choose(id,focus=false){
   state.district=state.district===id?null:id;
   if(state.district&&state.district!==OUTSIDE){
-   enabled=true;const d=byId.get(id);if(focus){setMode('2d');const b=d.bounds,w=Math.max(65,(x(b[2])-x(b[0]))*1.3),h=Math.max(55,(y(b[1])-y(b[3]))*1.3);setView([x((b[0]+b[2])/2)-w/2,y((b[1]+b[3])/2)-h/2,w,h],d.name);}
+   const d=byId.get(id);if(focus){setMode('2d');const b=d.bounds,w=Math.max(65,(x(b[2])-x(b[0]))*1.3),h=Math.max(55,(y(b[1])-y(b[3]))*1.3);setView([x((b[0]+b[2])/2)-w/2,y((b[1]+b[3])/2)-h/2,w,h],d.name);}
   }
   if(!state.district){get('zoneName').textContent='Exploración libre';get('zoneTag').textContent='VISUALIZACIÓN DE EPICENTROS';}
   else if(state.district!==OUTSIDE){get('zoneName').textContent=byId.get(state.district).name;get('zoneTag').textContent='DISTRITO SELECCIONADO';}
   render();if(focus&&state.district&&state.district!==OUTSIDE)document.querySelector('.map-panel').scrollIntoView({block:'start',behavior:'auto'});
  }
  function layer(){
-  get('bDistricts').setAttribute('aria-pressed',String(enabled));get('bDistricts').classList.toggle('active',enabled);
-  get('bDistricts').disabled=!ready||state.mode!=='2d';get('bDistricts').title=state.mode==='2d'?'Mostrar límites distritales · IGN Tommy Guardia':'Los límites distritales se muestran en el mapa 2D';
-  const group=get('districtLayer');group.style.display=enabled?'':'none';if(!enabled||!ready)return;
+  const group=get('districtLayer');if(!ready)return;group.style.display='';
   const key=state.view.join('|')+'|'+state.district+'|'+get('geoMap').getBoundingClientRect().width;if(key===lastLayerKey)return;lastLayerKey=key;
   const map=get('geoMap'),rect=map.getBoundingClientRect(),k=Math.max(rect.width/state.view[2],rect.height/state.view[3]),left=state.view[0]+(state.view[2]-rect.width/k)/2,top=state.view[1]+(state.view[3]-rect.height/k)/2;
   const visible=districts.filter(d=>x(d.bounds[2])>=left&&x(d.bounds[0])<=left+rect.width/k&&y(d.bounds[1])>=top&&y(d.bounds[3])<=top+rect.height/k);
@@ -79,16 +77,16 @@
   group.innerHTML=paths+labels.join('');
  }
  function tap(event){
-  if(!enabled||!ready)return false;
+  if(!ready||state.mode!=='2d')return false;
   const map=get('geoMap'),matrix=map.getScreenCTM();if(!matrix)return false;
   const p=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse()),lon=WORLD.minLon+p.x/WORLD.w*(WORLD.maxLon-WORLD.minLon),lat=WORLD.maxLat-p.y/WORLD.h*(WORLD.maxLat-WORLD.minLat),id=districtFor({lon,lat});
   if(id===OUTSIDE)return false;choose(id);return true;
  }
- get('bDistricts').onclick=()=>{enabled=!enabled;lastLayerKey='';layer();};get('districtExpand').onclick=()=>{expanded=!expanded;summary();};get('districtClear').onclick=()=>{state.district=null;get('zoneName').textContent='Exploración libre';get('zoneTag').textContent='VISUALIZACIÓN DE EPICENTROS';render();get('districtExpand').focus({preventScroll:true});};get('districtOutside').onclick=()=>choose(OUTSIDE);
+ get('districtExpand').onclick=()=>{expanded=!expanded;summary();};get('districtClear').onclick=()=>{state.district=null;get('zoneName').textContent='Exploración libre';get('zoneTag').textContent='VISUALIZACIÓN DE EPICENTROS';render();get('districtExpand').focus({preventScroll:true});};get('districtOutside').onclick=()=>choose(OUTSIDE);
  window.atlasDistricts={matches,summary,layer,tap,districtFor,aggregate,contains,decode,get ready(){return ready;},get districts(){return districts;}};
  async function load(){
   try{
-   const response=await fetch('assets/distritos.json?v=20261013-districts17');if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(!Array.isArray(data.districts)||!data.districts.length)throw new Error('Cartografía vacía');
+   const response=await fetch('assets/distritos.json?v=20261013-districts-always18');if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(!Array.isArray(data.districts)||!data.districts.length)throw new Error('Cartografía vacía');
    if(data.scale!==1000000)throw new Error('Precisión cartográfica no compatible');
    districts=data.districts.map(d=>({...d,path:d.display.flatMap(p=>p.map(r=>{const ring=decode(r,data.scale);return 'M'+ring.map(pt=>x(pt[0]).toFixed(3)+','+y(pt[1]).toFixed(3)).join('L')+'Z';})).join('')}));byId=new Map(districts.map(d=>[d.id,d]));ready=true;render();
   }catch(error){get('districtScope').textContent='Cartografía no disponible';get('districtSummary').setAttribute('aria-busy','false');get('districtEmpty').textContent='No se pudieron cargar los límites. El catálogo sigue disponible.';get('districtEmpty').hidden=false;get('districtOutside').hidden=true;window.atlasDiagnostics?.log('warning','Distritos: '+error.message);}
