@@ -22,17 +22,19 @@
   const fetched=catalog?.fetched_at_utc||backend?.fetched_at_utc;
   get('diagnosticDataTime').textContent=time(fetched)+' (Panamá)';
   const minutes=age(fetched);
-  get('diagnosticDataDetail').textContent=fetched?`${catalog?.event_count??backend?.event_count??'—'} registros · descarga hace ${minutes} min${catalog?.snapshot?' · captura inicial':''}. Leer el archivo correctamente no significa que tenga datos nuevos.`:'Esperando la primera lectura del archivo de datos.';
-  get('diagnosticSourceStatus').textContent=backend?.status==='success'?'Descarga oficial correcta':backend?.status==='failure'?'Falló la descarga oficial':'Registro no disponible';
+  const verified=backend?.verified_at_utc||catalog?.verified_at_utc,persist=backend?.persistence;
+  get('diagnosticDataDetail').textContent=fetched?`${catalog?.event_count??backend?.event_count??'—'} registros · descarga hace ${minutes} min${verified?' · fuente verificada hace '+age(verified)+' min':''}${catalog?.snapshot?' · captura inicial':''}.${persist?' Histórico: '+persist.stored_events+' eventos y '+persist.stored_revisions+' versiones; '+persist.retained_active+' registros conservados fuera de la última respuesta.':' Leer el archivo correctamente no significa que tenga datos nuevos.'}`:'Esperando la primera lectura del archivo de datos.';
+  get('diagnosticSourceStatus').textContent=backend?.status==='success'?(backend.http_status===304?'Fuente sin cambios · HTTP 304':'Descarga oficial correcta'):backend?.status==='failure'?'Falló la descarga oficial':'Registro no disponible';
   get('diagnosticSourceDetail').textContent=backend?.checked_at_utc?`${time(backend.checked_at_utc)} (Panamá) · Inicio: ${eventName(backend.event)}. Próxima consulta del servicio: ${time(backend.next_check_at_utc)} (Panamá).${backendIssue?' La consulta actual del registro falló; se muestra la copia leída anteriormente.':''}`:backendIssue||'El registro estará disponible tras el próximo despliegue.';
   get('diagnosticSourceLog').textContent=Array.isArray(backend?.logs)?backend.logs.map(String).join('\n')+(backend.push?'\nPush: '+backend.push.queued+' en cola · '+backend.push.accepted+' aceptados por el proveedor · '+backend.push.failed+' fallidos · '+backend.push.expired+' suscripciones caducadas · '+backend.push.pending+' pendientes.':''):backendIssue||'Sin registro publicado.';
+  if(backend?.recent_checks?.length)get('diagnosticSourceLog').textContent+='\n\nConsultas conservadas:\n'+backend.recent_checks.map(d=>`${time(d.checked_at_utc)} · ${d.status==='success'?'Correcta':'Falló'} · HTTP ${d.http_status??'—'} · ${d.event_count} registros`).join('\n');
   const note=get('diagnosticSummary');
   const automatic=runs?.find(r=>r.event==='schedule');
   if(backend?.collector==='cloudflare'){
    if(backend.status==='failure'){note.textContent='Falló la última consulta de Cloudflare al IGC–UP. Se conserva la última copia válida y su fecha real. Revisa el registro de descarga.';note.dataset.tone='warning'}
    else if(backend.event==='bootstrap'){note.textContent='Cloudflare tiene una copia inicial verificada. Está preparando la primera consulta del servicio.';note.dataset.tone='warning'}
-   else if(age(backend.checked_at_utc)>30||minutes>30){note.textContent='La recolección de Cloudflare está atrasada. Se conserva la copia anterior y su fecha real.';note.dataset.tone='warning'}
-   else{note.textContent='La última consulta del servicio de Cloudflare fue correcta. Los cambios llegan por un canal en vivo y conservan tus filtros y zoom; si el canal falla, se consulta la copia cada minuto. GitHub publica cambios del código.';note.dataset.tone='normal'}
+   else if(age(backend.checked_at_utc)>30||age(verified||fetched)>30){note.textContent='La recolección de Cloudflare está atrasada. Se conserva el histórico y su fecha real.';note.dataset.tone='warning'}
+   else{note.textContent=backend.http_status===304?'La fuente confirmó que no hay cambios: no se descargó HTML ni se reescribieron eventos. El histórico permanece guardado.':'La fuente se consultó correctamente. Solo se guardan eventos nuevos y revisiones; los registros ausentes se conservan en el histórico. Los cambios llegan sin recargar y mantienen filtros y zoom.';note.dataset.tone='normal'}
    if(backendIssue){note.textContent+=' No se pudo consultar el diagnóstico actual; se muestra el último registro leído.';note.dataset.tone='warning'}
   }
   else if(!runs){note.textContent=apiIssue||'Consultando el historial de GitHub…';note.dataset.tone=apiIssue?'warning':'normal'}

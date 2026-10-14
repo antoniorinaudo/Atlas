@@ -6,9 +6,9 @@
   document.getElementById('headerLatestMag').textContent=event?'M '+event.mag.toFixed(1):'M —';
   document.getElementById('headerLatestRegion').textContent=event?event.region:'Sin registros disponibles';
   document.getElementById('headerLatestTime').textContent=event?formatLocalTime(event.time,false):'';
-  const stale=lastSuccessAt&&Date.now()-Date.parse(lastSuccessAt)>30*60000;
+  const stale=(lastVerifiedAt||lastSuccessAt)&&Date.now()-Date.parse(lastVerifiedAt||lastSuccessAt)>30*60000;
   const unverified=latestIsSnapshot||stale||document.getElementById('syncLed').classList.contains('bad');
-  button.querySelector('small').textContent='ÚLTIMO SISMO · IGC–UP'+(unverified?' · DATOS SIN VERIFICAR':'');
+  button.querySelector('small').textContent='ÚLTIMO SISMO · IGC–UP'+(unverified?' · DATOS SIN VERIFICAR':event?.source_presence==='retained'?' · REGISTRO CONSERVADO':'');
   button.classList.toggle('source-unverified',!!unverified);
   if(event)button.style.setProperty('--latest-accent',rgb(event));
   const label=event?`Último sismo: M ${event.mag.toFixed(1)} · ${event.region} · ${dateShort(event.date)} · ${formatLocalTime(event.time)} Panamá · ${event.status}${unverified?' · Datos sin verificar':''}. Ver ficha.`:'Sin registros disponibles';

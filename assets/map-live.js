@@ -2,7 +2,7 @@
  'use strict';
  const get=id=>document.getElementById(id),map=get('geoMap'),notice=get('mapLiveNotice'),dialog=get('nearbyDialog');
  const log=(level,message)=>window.atlasDiagnostics?.log(level,message);
- const identity=eventIdentity,stamp=e=>e.date+'T'+e.time;
+ const identity=e=>e.uid||eventIdentity(e),stamp=e=>e.date+'T'+e.time;
  const newUntil=new Map();let noticeKey=null,pulseActive=false;
  window.atlasMap={isGesturing:false,fitView(v){
   if(!matchMedia('(max-width:630px)').matches)return v;
@@ -33,7 +33,7 @@
  };
  function updatePulse(){
   const latest=latestCatalogEvent(),age=latest?Date.now()-Date.parse(latest.date+'T'+latest.time+'-05:00'):Infinity;
-  const fresh=!!latest&&!latestIsSnapshot&&!!lastSuccessAt&&Date.now()-Date.parse(lastSuccessAt)<5*60000;
+  const fresh=!!latest&&!latestIsSnapshot&&!!(lastVerifiedAt||lastSuccessAt)&&Date.now()-Date.parse(lastVerifiedAt||lastSuccessAt)<5*60000;
   const active=fresh&&(age>=0&&age<30*60000||window.atlasLiveUI.isNew(latest));
   window.atlasHeader?.sync();
   let expired=false;for(const [key,until]of newUntil)if(until<=Date.now()){newUntil.delete(key);expired=true;}
@@ -72,7 +72,7 @@
     if(message.type==='catalog')accept(message.payload,message.etag);
     else if(message.type==='heartbeat'){
      window.atlasDiagnostics?.setCollector(message.collector);
-     if(lastBody){accept({...lastBody,collector:message.collector,fetched_at_utc:message.collector.fetched_at_utc||lastBody.fetched_at_utc},message.etag);}
+     if(lastBody){accept({...lastBody,collector:message.collector,fetched_at_utc:message.collector.fetched_at_utc||lastBody.fetched_at_utc,verified_at_utc:message.collector.verified_at_utc||lastBody.verified_at_utc},message.etag);}
      else if(!updating)refreshAutomatically();
     }
     lastMessage=Date.now();nextCheck=Date.parse(message.collector?.next_check_at_utc||message.payload?.collector?.next_check_at_utc)||0;attempt=0;

@@ -4,6 +4,7 @@
   "compatibility_date": "2026-10-10",
   "workers_dev": true,
   "account_id": "5d12f6ce42fe16bcf17b68f4ba3fbc79",
+  "vars": { "RECOVERY_CAPTURE": "20261014" },
   "triggers": { "crons": [] },
   "durable_objects": { "bindings": [{ "name": "ATLAS_LIVE", "class_name": "AtlasLive" }] },
   "migrations": [{ "tag": "v1-live", "new_sqlite_classes": ["AtlasLive"] }],

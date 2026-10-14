@@ -9,7 +9,7 @@ const response=()=>new Response(html,{headers:{'Content-Type':'text/html; charse
 function memoryKV(initial=null) {let value=initial;return {get:async()=>value,put:async(key,data)=>{assert.equal(key,KEY);value=JSON.parse(data);},value:()=>value};}
 function context() {
  const db=new DatabaseSync(':memory:');let alarm=null;const messages=[];
- return {messages,blockConcurrencyWhile:fn=>fn(),getWebSockets:()=>[{send:data=>messages.push(JSON.parse(data))}],storage:{sql:{exec(query,...values){const statement=db.prepare(query);const rows=statement.columns().length?statement.all(...values):(statement.run(...values),[]);return{toArray:()=>rows};}},getAlarm:async()=>alarm,setAlarm:async time=>{alarm=time;}}};
+ return {messages,blockConcurrencyWhile:fn=>fn(),getWebSockets:()=>[{send:data=>messages.push(JSON.parse(data))}],storage:{transactionSync(fn){db.exec('BEGIN');try{const result=fn();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}},sql:{exec(query,...values){const statement=db.prepare(query);const rows=statement.columns().length?statement.all(...values):(statement.run(...values),[]);return{toArray:()=>rows};}},getAlarm:async()=>alarm,setAlarm:async time=>{alarm=time;}}};
 }
 
 test('Extrae tabla, deduplica y rechaza magnitudes/fechas inválidas',()=>{

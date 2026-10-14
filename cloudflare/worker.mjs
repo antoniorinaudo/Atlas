@@ -1,4 +1,6 @@
 import {initPush,pushAPI,queueNewEvents,dispatchPush} from './push.mjs';
+import {initCatalogStore,prepareMerge,viewStored,seedLegacy,prepareRecovery,recordCheck,recentChecks,archivePage,eventRevisions} from './catalog-store.mjs';
+import recoveryCapture from './recovery-20261014.json' with {type:'json'};
 // Read-only public API. One Durable Object harvests and broadcasts changes.
 export const SOURCE = 'https://sismosgeociencias.up.ac.pa/';
 export const KEY = 'catalog-v1';
@@ -46,28 +48,46 @@ export function parseOfficial(html) {
   events.sort((a,b)=>(b.date+'T'+b.time).localeCompare(a.date+'T'+a.time));
   return events.map((e,i)=>({...e,id:i+1}));
 }
-async function readLimited(response) {
-  const reader=response.body.getReader(), chunks=[];let size=0;
-  try { for(;;) { const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>5_000_000)throw Error('Respuesta superior a 5 MB');chunks.push(value); } }
-  catch(error) {await reader.cancel();throw error;}
-  const bytes=new Uint8Array(size);let offset=0;
-  for(const chunk of chunks) {bytes.set(chunk,offset);offset+=chunk.length;}
+export async function readLimited(response) {
+  const reader=response.body.getReader();let size=0,html='',tableStart=-1,scanned=0;
   const charset=response.headers.get('content-type')?.match(/charset=([^;\s]+)/i)?.[1]||'utf-8';
-  return new TextDecoder(charset).decode(bytes);
+  const decoder=new TextDecoder(charset);
+  try {for(;;){
+    const {done,value}=await reader.read();if(done){html+=decoder.decode();break;}
+    size+=value.byteLength;if(size>12_000_000)throw Error('Tabla oficial superior al límite de seguridad de 12 MB');
+    const previousLength=html.length;html+=decoder.decode(value,{stream:true});
+    if(tableStart<0){const match=/<table\b[^>]*>/i.exec(html.slice(scanned));if(match)tableStart=scanned+match.index;else scanned=Math.max(0,html.length-256);}
+    let search=Math.max(tableStart,previousLength-32),match;
+    const closing=/<\/table\s*>/ig;closing.lastIndex=Math.max(0,search);
+    while(tableStart>=0&&(match=closing.exec(html))){
+      const end=match.index+match[0].length,header=html.slice(tableStart,Math.min(end,tableStart+6000)).toLowerCase();
+      if(['latitud','longitud','magnitud','fecha'].every(word=>header.includes(word))){
+        await reader.cancel();return {html:html.slice(0,end),bytes_read:size,stopped_after_table:true};
+      }
+      const next=/<table\b[^>]*>/i.exec(html.slice(end));tableStart=next?end+next.index:-1;scanned=end;
+    }
+  }}catch(error){await reader.cancel();throw error;}
+  return {html,bytes_read:size,stopped_after_table:false};
 }
-export async function collect(fetcher=fetch, wait=sleep) {
+export async function collect(fetcher=fetch, wait=sleep, validators={}) {
   const logs=[];
   for(let attempt=1;attempt<=3;attempt++) {
     const started=Date.now(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
     let status=null,canRetry=true;
     try {
-      const response=await fetcher(SOURCE,{headers:{'Accept':'text/html,application/xhtml+xml','Cache-Control':'no-cache','User-Agent':'AtlasSismicoPanama/2.0 (public data collector)'},signal:controller.signal});
+      const headers={'Accept':'text/html,application/xhtml+xml','Cache-Control':'no-cache','User-Agent':'AtlasSismicoPanama/3.0 (persistent public catalogue)'};
+      if(validators.etag)headers['If-None-Match']=validators.etag;else if(validators.last_modified)headers['If-Modified-Since']=validators.last_modified;
+      const response=await fetcher(SOURCE,{headers,signal:controller.signal});
       status=response.status;
+      if(status===304){canRetry=false;await response.body?.cancel();if(!validators.etag&&!validators.last_modified)throw Error('HTTP 304 sin una copia verificada');logs.push(`GET condicional: HTTP 304 · sin cambios · 0 bytes de HTML · ${Date.now()-started} ms`);return {not_modified:true,logs,http_status:304,bytes_read:0,validators};}
       if(!response.ok) {canRetry=retryable.has(status);await response.body?.cancel();throw Error('HTTP '+status);}
       canRetry=false; // Invalid HTML must not provoke a burst of repeated downloads.
-      const events=parseOfficial(await readLimited(response));
-      logs.push(`GET oficial: intento ${attempt}/3 · HTTP ${status} · ${Date.now()-started} ms · ${events.length} sismos`);
-      return {events,logs,http_status:status};
+      const body=await readLimited(response);
+      if(/estamos\s+en\s+mantenimiento|sitio.{0,30}en\s+mantenimiento/i.test(text(body.html.slice(0,6000))))throw Error('Fuente oficial en mantenimiento; se conserva el histórico');
+      let events;try{events=parseOfficial(body.html);}catch(error){const title=text(body.html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]||'').slice(0,100);error.message+=` · ${body.bytes_read} bytes${title?' · título: '+title:body.bytes_read<2000?' · '+text(body.html).slice(0,140):''}`;throw error;}
+      const nextValidators={etag:response.headers.get('etag')?.slice(0,300)||null,last_modified:response.headers.get('last-modified')?.slice(0,150)||null};
+      logs.push(`GET oficial: intento ${attempt}/3 · HTTP ${status} · ${Date.now()-started} ms · ${events.length} sismos · ${body.bytes_read} bytes${body.stopped_after_table?' · lectura detenida al cerrar la tabla principal':''}`);
+      return {events,logs,http_status:status,bytes_read:body.bytes_read,validators:nextValidators};
     } catch(error) {
       if(error.name==='AbortError'||error instanceof TypeError) canRetry=true;
       logs.push(`GET oficial: intento ${attempt}/3 · ${status===null?'red o tiempo agotado':'HTTP '+status} · ${Date.now()-started} ms · ${error.message}`);
@@ -85,7 +105,7 @@ export default {
   async fetch(request,env) {
     const path=new URL(request.url).pathname;
     if(['/push/public-key','/push/subscribe','/push/unsubscribe','/push/test'].includes(path))return env.ATLAS_LIVE.getByName('panama').fetch(request);
-    if(!['/sismos.json','/diagnostico.json','/live'].includes(path))return jsonResponse({error:'Ruta no encontrada'},404);
+    if(!['/sismos.json','/diagnostico.json','/historico.json','/revisiones.json','/live'].includes(path))return jsonResponse({error:'Ruta no encontrada'},404);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:publicHeaders()});
     if(!['GET','HEAD'].includes(request.method))return jsonResponse({error:'API de solo lectura'},405);
     return env.ATLAS_LIVE.getByName('panama').fetch(request);
@@ -106,16 +126,31 @@ export class AtlasLive {
     this.ready=ctx.blockConcurrencyWhile(async()=>{
       ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS atlas_state (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
       initPush(ctx.storage.sql);
+      initCatalogStore(ctx.storage.sql);
       const row=ctx.storage.sql.exec('SELECT value FROM atlas_state WHERE id = 1').toArray()[0];
       if(row)this.snapshot=JSON.parse(row.value);
       else if(env.ATLAS_KV){
         this.snapshot=await env.ATLAS_KV.get(KEY,{type:'json',cacheTtl:30});
         if(this.snapshot){this.snapshot.revision=await eventRevision(this.snapshot.catalog?.events||[]);this.save(this.snapshot);}
       }
-      // Alarms survive hibernation. Seed a first check, never duplicate an existing one.
-      if(await ctx.storage.getAlarm()===null)await ctx.storage.setAlarm(Date.now()+1000);
+      const migrated=this.atomic(()=>seedLegacy(ctx.storage.sql,this.snapshot?.catalog));
+      let recovered=false;
+      if(env.RECOVERY_CAPTURE==='20261014'){
+        const recovery=prepareRecovery(ctx.storage.sql,recoveryCapture);
+        if(recovery){
+          const old=this.snapshot,latestDownload=Date.parse(old?.catalog?.fetched_at_utc||0)>Date.parse(recoveryCapture.fetched_at_utc)?old.catalog.fetched_at_utc:recoveryCapture.fetched_at_utc;
+          const catalog={source:'IGC-UP',source_url:SOURCE,...old?.catalog,fetched_at_utc:latestDownload,verified_at_utc:old?.catalog?.verified_at_utc||recoveryCapture.fetched_at_utc,snapshot_only:!old?.catalog||!!old.catalog.snapshot_only,events:recovery.events,recovery:{capture_at_utc:recoveryCapture.fetched_at_utc,imported_at_utc:new Date().toISOString(),note:'Captura oficial verificada recuperada; la disponibilidad actual de la fuente se informa en el diagnóstico.'}};
+          const diagnostic={collector:'cloudflare',service:'durable-object',event:'bootstrap',status:'pending',checked_at_utc:new Date().toISOString(),...old?.diagnostic,fetched_at_utc:latestDownload,event_count:catalog.events.length,persistence:recovery.stats,logs:[...(old?.diagnostic?.logs||[]),`Recuperación: ${recovery.stats.recovered} eventos incorporados desde captura oficial verificada del ${recoveryCapture.fetched_at_utc}; no se sobrescriben eventos existentes.`]};
+          const snapshot={...await pack(catalog,diagnostic),revision:await eventRevision(catalog.events)};
+          this.atomic(()=>{recovery.apply();this.save(snapshot);});recovered=true;
+        }
+      }
+      this.baselineReady=!!ctx.storage.sql.exec('SELECT value FROM atlas_catalog_meta WHERE key=?','push-baseline-v1').toArray()[0];
+      // Recheck once after migration; otherwise alarms survive hibernation unchanged.
+      if(migrated||recovered||await ctx.storage.getAlarm()===null)await ctx.storage.setAlarm(Date.now()+1000);
     });
   }
+  atomic(callback){const previous=this.snapshot;try{return this.ctx.storage.transactionSync(callback);}catch(error){this.snapshot=previous;throw error;}}
   save(snapshot) {
     this.ctx.storage.sql.exec('INSERT INTO atlas_state (id,value) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',JSON.stringify(snapshot));
     this.snapshot=snapshot;
@@ -136,26 +171,44 @@ export class AtlasLive {
     const old=this.snapshot;
     const checked=new Date().toISOString();
     const base={collector:'cloudflare',service:'durable-object',event:'alarm',checked_at_utc:checked};
-    let catalog=old?.catalog||null,diagnostic,revision=old?.revision||null;
+    let catalog=old?.catalog||null,diagnostic,revision=old?.revision||null,plan=null;
     try {
-      const result=await collect(fetcher,wait),fetched=new Date().toISOString();
-      catalog={source:'IGC-UP',source_url:SOURCE,fetched_at_utc:fetched,snapshot_only:false,events:result.events};
-      revision=await eventRevision(result.events);
-      diagnostic={...base,status:'success',fetched_at_utc:fetched,event_count:result.events.length,http_status:result.http_status,logs:result.logs,failure_count:0};
+      const result=await collect(fetcher,wait,old?.diagnostic?.upstream||{}),verified=new Date().toISOString();
+      if(result.not_modified){
+        if(!catalog)throw Error('No existe una copia persistente para HTTP 304');
+        catalog={...catalog,verified_at_utc:verified,events:viewStored(this.ctx.storage.sql)};
+      }else{
+        try{plan=prepareMerge(this.ctx.storage.sql,result.events,verified);}
+        catch(error){error.http_status=result.http_status;error.logs=[...result.logs,error.message];throw error;}
+        catalog={source:'IGC-UP',source_url:SOURCE,fetched_at_utc:verified,verified_at_utc:verified,snapshot_only:false,events:plan.events};
+      }
+      revision=await eventRevision(catalog.events);
+      const persistence=plan?.stats||{...old.diagnostic.persistence,active_events:catalog.events.length,inserted:0,updated:0,unchanged:catalog.events.length,event_rows_written:0};
+      diagnostic={...base,status:'success',fetched_at_utc:catalog.fetched_at_utc,verified_at_utc:verified,event_count:catalog.events.length,http_status:result.http_status,bytes_read:result.bytes_read,logs:result.logs,upstream:result.validators,persistence,failure_count:0};
+      diagnostic.logs.push(`Persistencia: ${persistence.stored_events} eventos archivados · ${persistence.inserted} nuevos · ${persistence.updated} revisados · ${persistence.retained_active} conservados fuera de la última respuesta · ${persistence.event_rows_written} filas de eventos escritas`);
     }catch(error){
-      diagnostic={...base,status:'failure',fetched_at_utc:catalog?.fetched_at_utc||null,event_count:catalog?.events?.length||0,http_status:error.http_status??null,logs:error.logs||[error.message],failure_count:(old?.diagnostic?.failure_count||0)+1};
+      // A failed validation cannot publish a half-prepared catalogue or ledger.
+      catalog=old?.catalog||null;revision=old?.revision||null;plan=null;
+      diagnostic={...base,status:'failure',fetched_at_utc:catalog?.fetched_at_utc||null,verified_at_utc:catalog?.verified_at_utc||null,event_count:catalog?.events?.length||0,http_status:error.http_status??null,logs:error.logs||[error.message],reason:error.code||null,upstream:old?.diagnostic?.upstream||{},persistence:old?.diagnostic?.persistence||null,failure_count:(old?.diagnostic?.failure_count||0)+1};
     }
     const delay=diagnostic.status==='success'?60000:Math.min(600000,60000*2**Math.min(4,diagnostic.failure_count));
     diagnostic.next_check_at_utc=new Date(Date.now()+delay).toISOString();
-    const queued=diagnostic.status==='success'?await queueNewEvents(this.ctx.storage.sql,old?.catalog?.events,catalog?.events||[]):0;
     const snapshot={...await pack(catalog,diagnostic),revision};
-    this.save(snapshot);
+    const baselineReady=this.baselineReady;
+    this.atomic(()=>{
+      plan?.apply();this.save(snapshot);recordCheck(this.ctx.storage.sql,diagnostic);
+      if(diagnostic.status==='success'&&!this.baselineReady)this.ctx.storage.sql.exec('INSERT OR IGNORE INTO atlas_catalog_meta(key,value) VALUES(?,?)','push-baseline-v1',checked);
+    });
+    if(diagnostic.status==='success')this.baselineReady=true;
+    // Migration/recovery establishes a baseline; historical fills and revisions
+    // never become new-event push notifications.
+    const queued=diagnostic.status==='success'&&baselineReady&&plan?await queueNewEvents(this.ctx.storage.sql,old?.catalog?.events,plan.added):0;
     await this.ctx.storage.setAlarm(Date.now()+delay);
     const changed=revision!==old?.revision;
     this.broadcast(changed&&catalog?{type:'catalog',etag:snapshot.etag,revision,payload:{...catalog,collector:diagnostic}}:{type:'heartbeat',etag:snapshot.etag,revision,collector:diagnostic});
     const push=await dispatchPush(this.ctx.storage.sql,this.env);
     if(queued||push.accepted||push.failed||push.expired||push.pending){
-      const updated={...diagnostic,push:{queued,...push}};this.save({...await pack(catalog,updated),revision});
+      const updated={...diagnostic,push:{queued,...push}};const pushed={...await pack(catalog,updated),revision};this.atomic(()=>{this.save(pushed);recordCheck(this.ctx.storage.sql,updated);});
       this.broadcast({type:'heartbeat',etag:this.snapshot.etag,revision,collector:updated});
       console.log(JSON.stringify({event:'push',queued,...push}));
     }
@@ -165,6 +218,10 @@ export class AtlasLive {
     await this.ready;
     const path=new URL(request.url).pathname;
     if(path.startsWith('/push/'))return pushAPI(request,this.ctx.storage.sql,this.env);
+    if(path==='/historico.json'||path==='/revisiones.json'){
+      try{const url=new URL(request.url),data=path==='/historico.json'?archivePage(this.ctx.storage.sql,url):eventRevisions(this.ctx.storage.sql,url.searchParams.get('uid'));return new Response(request.method==='HEAD'?null:JSON.stringify(data),{headers:publicHeaders()});}
+      catch(error){return jsonResponse({error:error.message},400);}
+    }
     if(path==='/live'){
       if(request.headers.get('Upgrade')?.toLowerCase()!=='websocket')return jsonResponse({error:'Se requiere WebSocket'},426);
       if(this.ctx.getWebSockets().length>=1000)return jsonResponse({error:'Conexiones ocupadas; usar API de lectura'},429);
@@ -177,7 +234,7 @@ export class AtlasLive {
     const headers=publicHeaders(),stored=this.snapshot;
     if(!stored)return new Response('{"error":"Colector pendiente de su primera descarga"}',{status:503,headers});
     headers.ETag=stored.etag;
-    const data=path==='/diagnostico.json'?stored.diagnostic:stored.catalog?{...stored.catalog,collector:stored.diagnostic}:null;
+    const data=path==='/diagnostico.json'?{...stored.diagnostic,recent_checks:recentChecks(this.ctx.storage.sql)}:stored.catalog?{...stored.catalog,collector:stored.diagnostic}:null;
     if(!data)return new Response('{"error":"No hay copia válida disponible"}',{status:503,headers});
     if(request.headers.get('If-None-Match')?.split(',').map(v=>v.trim().replace(/^W\//,'')).some(v=>v===stored.etag||v==='*'))return new Response(null,{status:304,headers});
     return new Response(request.method==='HEAD'?null:JSON.stringify(data),{headers});
