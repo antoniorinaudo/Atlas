@@ -109,7 +109,7 @@
  },catalogSound(additions){
   if(document.hidden||!soundEnabled)return;
   const minimum=Number(get('pushMagnitude').value);
-  if(additions.some(event=>event.mag>=minimum)&&playTone())soundStatus.textContent='Sonó un aviso de nuevo registro del IGC–UP.';
+  if(additions.some(event=>event.mag>=minimum)&&playTone())soundStatus.textContent='Sonó un aviso de nuevo registro del Atlas.';
  }};
  navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='atlas-open-event'){eventToOpen=event.data.event;window.atlasPush.handleDeepLink();if(eventToOpen)refreshAutomatically().then(()=>window.atlasPush.handleDeepLink());}});
  const installButton=get('installApp'),installDialog=get('installDialog'),displayMode=matchMedia('(display-mode: standalone)');
@@ -140,7 +140,7 @@
  installDialog.addEventListener('close',()=>{if(!installButton.hidden)installButton.focus({preventScroll:true});});
  installationControls();
  if('serviceWorker'in navigator&&isSecureContext){
-  navigator.serviceWorker.register('./sw.js?v=20261013-trend-options16',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
+  navigator.serviceWorker.register('./sw.js?v=20261014-multisource21',{scope:'./',updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(async reg=>{
    registration=reg;if(supported)subscription=await reg.pushManager.getSubscription();
    if(record?.pendingDelete){try{await api('unsubscribe',{id:record.id,token:record.token});record={minMagnitude:record.minMagnitude};save();}catch{}}
    availability();window.atlasPush.handleDeepLink();

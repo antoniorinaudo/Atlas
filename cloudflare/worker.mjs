@@ -1,6 +1,8 @@
 import {initPush,pushAPI,queueNewEvents,dispatchPush} from './push.mjs';
 import {initCatalogStore,prepareMerge,viewStored,seedLegacy,prepareRecovery,recordCheck,recentChecks,archivePage,eventRevisions} from './catalog-store.mjs';
 import recoveryCapture from './recovery-20261014.json' with {type:'json'};
+import {initMulti,normalizeFeature,inRegion,externalArchive,comparisonRevisions} from './multi-source.mjs';
+import {checkMulti} from './multi-check.mjs';
 // Read-only public API. One Durable Object harvests and broadcasts changes.
 export const SOURCE = 'https://sismosgeociencias.up.ac.pa/';
 export const KEY = 'catalog-v1';
@@ -116,7 +118,7 @@ function publicHeaders() {
 }
 function jsonResponse(data,status=200,extra={}) {return new Response(JSON.stringify(data),{status,headers:{...publicHeaders(),...extra}});}
 export async function eventRevision(events) {
-  const data=events.map(({id,...event})=>event);
+  const data=events.map(({id,verified_at_utc,...event})=>({...event,...(event.observations?{observations:event.observations.map(({verified_at_utc,...observation})=>observation)}:{})}));
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(data)));
   return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
 }
@@ -127,6 +129,7 @@ export class AtlasLive {
       ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS atlas_state (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
       initPush(ctx.storage.sql);
       initCatalogStore(ctx.storage.sql);
+      initMulti(ctx.storage.sql);
       const row=ctx.storage.sql.exec('SELECT value FROM atlas_state WHERE id = 1').toArray()[0];
       if(row)this.snapshot=JSON.parse(row.value);
       else if(env.ATLAS_KV){
@@ -147,7 +150,8 @@ export class AtlasLive {
       }
       this.baselineReady=!!ctx.storage.sql.exec('SELECT value FROM atlas_catalog_meta WHERE key=?','push-baseline-v1').toArray()[0];
       // Recheck once after migration; otherwise alarms survive hibernation unchanged.
-      if(migrated||recovered||await ctx.storage.getAlarm()===null)await ctx.storage.setAlarm(Date.now()+1000);
+      const multiUpgrade=env.MULTI_SOURCE==='true'&&!ctx.storage.sql.exec('SELECT provider FROM atlas_provider_state LIMIT 1').toArray().length;
+      if(migrated||recovered||multiUpgrade||await ctx.storage.getAlarm()===null)await ctx.storage.setAlarm(Date.now()+1000);
     });
   }
   atomic(callback){const previous=this.snapshot;try{return this.ctx.storage.transactionSync(callback);}catch(error){this.snapshot=previous;throw error;}}
@@ -162,10 +166,31 @@ export class AtlasLive {
   async alarm() {
     await this.ready;
     if(this.inFlight)return this.inFlight;
+    if(this.env.EMSC_STREAM==='true')await this.connectEMSC();
     this.inFlight=this.check().finally(()=>{this.inFlight=null;});
     return this.inFlight;
   }
+  async connectEMSC(){
+    if(this.emscSocket?.readyState===1||this.emscConnecting)return;
+    this.emscConnecting=true;
+    try{
+      const response=await fetch('https://www.seismicportal.eu/standing_order/websocket',{headers:{Upgrade:'websocket'},signal:AbortSignal.timeout(10000)});
+      if(!response.webSocket)throw Error('EMSC WebSocket HTTP '+response.status);
+      const socket=response.webSocket;socket.accept();this.emscSocket=socket;
+      socket.addEventListener('message',message=>{
+        try{const frame=JSON.parse(message.data);if(!['create','update','insert'].includes(String(frame.action).toLowerCase()))return;const event=normalizeFeature('EMSC',frame.data);if(!inRegion(event))return;
+          // Serialize stream writes with alarm harvests. HTTP checkpoints remain
+          // independent, so reconnects recover any missed messages.
+          this.streamQueue=(this.streamQueue||Promise.resolve()).catch(()=>{}).then(async()=>{await this.inFlight;this.inFlight=checkMulti.call(this,fetch,undefined,{live:event,event:'stream'}).finally(()=>{this.inFlight=null;});await this.inFlight;});
+          this.ctx.waitUntil(this.streamQueue);
+        }catch(error){console.log(JSON.stringify({event:'emsc-frame',error:error.message}));}
+      });
+      for(const type of ['close','error'])socket.addEventListener(type,()=>{if(this.emscSocket===socket)this.emscSocket=null;});
+    }catch(error){console.log(JSON.stringify({event:'emsc-stream',error:error.message,recovery:'API incremental'}));}
+    finally{this.emscConnecting=false;}
+  }
   async check(fetcher=fetch,wait=sleep) {
+    if(this.env.MULTI_SOURCE==='true')return checkMulti.call(this,fetcher,wait);
     // A safety alarm is persisted before I/O so an interrupted invocation recovers.
     await this.ctx.storage.setAlarm(Date.now()+120000);
     const old=this.snapshot;
@@ -219,7 +244,7 @@ export class AtlasLive {
     const path=new URL(request.url).pathname;
     if(path.startsWith('/push/'))return pushAPI(request,this.ctx.storage.sql,this.env);
     if(path==='/historico.json'||path==='/revisiones.json'){
-      try{const url=new URL(request.url),data=path==='/historico.json'?archivePage(this.ctx.storage.sql,url):eventRevisions(this.ctx.storage.sql,url.searchParams.get('uid'));return new Response(request.method==='HEAD'?null:JSON.stringify(data),{headers:publicHeaders()});}
+      try{const url=new URL(request.url),sql=this.ctx.storage.sql,uid=url.searchParams.get('uid');let data;if(path==='/historico.json')data=url.searchParams.has('provider')?externalArchive(sql,url):archivePage(sql,url);else{const linked=sql.exec('SELECT value FROM atlas_observations WHERE canonical_uid=? AND provider=?',uid,'IGC-UP').toArray()[0];data={...eventRevisions(sql,linked?JSON.parse(linked.value).provider_id:uid),uid,sources:comparisonRevisions(sql,uid)};}return new Response(request.method==='HEAD'?null:JSON.stringify(data),{headers:publicHeaders()});}
       catch(error){return jsonResponse({error:error.message},400);}
     }
     if(path==='/live'){

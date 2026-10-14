@@ -66,7 +66,7 @@ export async function pushAPI(request,sql,env,fetcher=fetch){
   if(path==='/push/test'){
    if(Date.now()-sub.last_test<60000)return response({error:'Espera un minuto entre pruebas'},429,allowedOrigin);
    sql.exec('UPDATE push_subscriptions SET last_test=? WHERE id=?',Date.now(),sub.id);
-   const status=await sendPush(JSON.parse(sub.subscription),{title:'Prueba · Atlas Sísmico Panamá',body:'Los avisos de nuevos registros IGC–UP están preparados para este dispositivo. Esto es una prueba.',tag:'atlas-prueba'},env,fetcher);
+   const status=await sendPush(JSON.parse(sub.subscription),{title:'Prueba · Atlas Sísmico Panamá',body:'Los avisos de nuevos registros del Atlas están preparados para este dispositivo. Esto es una prueba.',tag:'atlas-prueba'},env,fetcher);
    if(status===404||status===410){sql.exec('DELETE FROM push_subscriptions WHERE id=?',sub.id);return response({error:'La suscripción caducó. Desactiva y vuelve a activar los avisos.'},410,allowedOrigin);}
    if(status<200||status>=300)return response({error:'El proveedor push rechazó la prueba: HTTP '+status},502,allowedOrigin);
    return response({ok:true,accepted:true},200,allowedOrigin);
@@ -81,15 +81,15 @@ export async function pushAPI(request,sql,env,fetcher=fetch){
 export function newPublishedEvents(before,after,now=Date.now()){
  if(!before?.length)return [];
  const last=before.reduce((a,e)=>[e.date,e.time].join('T')>a?[e.date,e.time].join('T'):a,'');
- const known=new Set(before.map(eventKey));
- return after.filter(e=>{const age=now-Date.parse(e.date+'T'+e.time+'-05:00');return !known.has(eventKey(e))&&[e.date,e.time].join('T')>last&&age>=-5*60000&&age<=24*3600000;});
+ const known=new Set(before.map(e=>e.uid||eventKey(e)));
+ return after.filter(e=>{const age=now-Date.parse(e.date+'T'+e.time+'-05:00');return !known.has(e.uid||eventKey(e))&&[e.date,e.time].join('T')>last&&age>=-5*60000&&age<=24*3600000;});
 }
 export async function queueNewEvents(sql,before,after,now=Date.now()){
  const added=newPublishedEvents(before,after,now);if(!added.length)return 0;let queued=0;
  for(const sub of sql.exec('SELECT id,min_mag FROM push_subscriptions').toArray()){
   const matching=added.filter(e=>e.mag>=sub.min_mag).sort((a,b)=>[b.date,b.time].join('T').localeCompare([a.date,a.time].join('T')));if(!matching.length)continue;
-  const e=matching[0],id=await hash(sub.id+'|'+eventKey(e));
-  const payload={title:`M ${e.mag.toFixed(1)} · Nuevo registro IGC–UP`,body:`${e.region.slice(0,190)} · ${e.date} ${pushClock12(e.time)} Panamá · ${e.depth} km.${matching.length>1?' '+matching.length+' registros nuevos.':''} Aviso informativo.`,tag:'atlas-'+id.slice(0,24),event:eventKey(e),timestamp:Date.parse(e.date+'T'+e.time+'-05:00')};
+  const e=matching[0],id=await hash(sub.id+'|'+(e.uid||eventKey(e)));
+  const payload={title:`M ${e.mag.toFixed(1)} · Nuevo registro ${e.provider||'IGC–UP'}`,body:`${e.region.slice(0,190)} · ${e.date} ${pushClock12(e.time)} Panamá · ${e.depth} km.${matching.length>1?' '+matching.length+' registros nuevos.':''} Aviso informativo.`,tag:'atlas-'+id.slice(0,24),event:eventKey(e),timestamp:Date.parse(e.date+'T'+e.time+'-05:00')};
   sql.exec('INSERT OR IGNORE INTO push_outbox(id,recipient,payload,due,expires) VALUES(?,?,?,?,?)',id,sub.id,JSON.stringify(payload),now,now+1800000);queued++;
  }
  return queued;

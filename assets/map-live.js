@@ -47,9 +47,10 @@
  const status=(value,label)=>{get('streamState').dataset.state=value;get('streamState').textContent=label;};
  window.atlasStream={healthy:()=>socket?.readyState===WebSocket.OPEN&&Date.now()-lastMessage<Math.max(180000,nextCheck-lastMessage+60000)};
  function accept(body,etag){
+  const sources=body.collector?.sources||body.sources;if(sources)body={...body,events:body.events.map(e=>({...e,observations:e.observations?.map(o=>({...o,verified_at_utc:sources[o.provider]?.verified_at_utc||o.verified_at_utc,source_health:sources[o.provider]?.status||o.source_health}))}))};
   const rows=normalizeRows(body.events),accepted={...body,events:rows};
   formatUpdated(accepted.fetched_at_utc||accepted.generated_at_utc);
-  if(displayCatalog(accepted,'Servicio en vivo · Cloudflare · IGC–UP')){
+  if(displayCatalog(accepted,'Servicio en vivo · Cloudflare · IGC–UP / USGS / EMSC')){
    lastBody=accepted;cachedCatalogs.set(DATA_URL,{etag,body:accepted});updatePulse();window.atlasPush?.handleDeepLink();
   }
  }

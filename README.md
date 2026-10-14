@@ -1,6 +1,8 @@
 # Atlas Sísmico Panamá
 
-Mapa interactivo 2D + 3D que representa **los eventos del catálogo público del Instituto de Geociencias de la Universidad de Panamá (IGC-UP)**. La aplicación muestra fichas interactivas al seleccionar epicentros o hipocentros, fecha, hora local, magnitud, profundidad, coordenadas, estado y enlace oficial.
+Mapa interactivo 2D + 3D con reportes de **IGC–UP, USGS y EMSC**. Cada ficha conserva la fuente, magnitud, profundidad, coordenadas y enlace de origen. «Comparar fuentes» permite consultar las mediciones asociadas sin añadir paneles permanentes al mapa.
+
+La integración conserva observaciones y revisiones independientes, incorpora EMSC por WebSocket y consulta novedades de USGS por API. Cada fuente tiene su propio estado y recuperación. Véanse [arquitectura, criterios de asociación, créditos y límites](cloudflare/FUENTES.md).
 
 ## Publicar GRATIS en GitHub Pages
 
@@ -22,7 +24,7 @@ Las tablas de eventos y revisiones solo cambian cuando cambia el registro; una c
 
 El HTML oficial no proporciona aquí un identificador estable. Se conserva una identidad interna y alias de fecha/hora/coordenadas. Una relocalización se enlaza automáticamente solo si hay una correspondencia única en el mismo segundo y a menos de 25 km; los casos simultáneos ambiguos no se fusionan. Un cambio de hora sin ID oficial puede quedar como un registro independiente. Cada cambio conserva su versión anterior; una observación preliminar no sobreescribe una revisada. No se infiere una retirada oficial porque un registro desaparezca de una descarga: se conserva y se identifica como tal. Una caída a menos de la mitad de los registros ya guardados para los mismos siete días, con al menos 20 registros de referencia, se rechaza como respuesta parcial. Esto es una protección adicional, no una prueba absoluta de integridad de la fuente.
 
-Cuando detecta cambios en los eventos, envía el catálogo por **WebSocket** a las pestañas conectadas. Si solo cambió la fecha de descarga o el estado del servicio, envía un mensaje ligero. No vuelve a dibujar el mapa por una versión idéntica. La conexión utiliza la API de hibernación de Cloudflare para no mantener el objeto ejecutándose mientras espera.
+Cuando detecta cambios en los eventos, envía el catálogo por **WebSocket** a las pestañas conectadas. Si solo cambió la fecha de descarga, envía un mensaje ligero. No vuelve a dibujar el mapa por una versión idéntica. La conexión hacia visitantes utiliza la API de hibernación; la conexión saliente a EMSC mantiene el objeto activo mientras esté abierta.
 
 - Datos: `https://atlas-sismico-panama-datos.ptydev.workers.dev/sismos.json`
 - Diagnóstico: `https://atlas-sismico-panama-datos.ptydev.workers.dev/diagnostico.json`
