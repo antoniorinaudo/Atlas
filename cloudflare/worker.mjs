@@ -189,7 +189,7 @@ export class AtlasLive {
     }catch(error){
       // A failed validation cannot publish a half-prepared catalogue or ledger.
       catalog=old?.catalog||null;revision=old?.revision||null;plan=null;
-      diagnostic={...base,status:'failure',fetched_at_utc:catalog?.fetched_at_utc||null,verified_at_utc:catalog?.verified_at_utc||null,event_count:catalog?.events?.length||0,http_status:error.http_status??null,logs:error.logs||[error.message],reason:error.code||null,upstream:old?.diagnostic?.upstream||{},persistence:old?.diagnostic?.persistence||null,failure_count:(old?.diagnostic?.failure_count||0)+1};
+      diagnostic={...base,status:'failure',fetched_at_utc:catalog?.fetched_at_utc||null,verified_at_utc:catalog?.verified_at_utc||null,event_count:catalog?.events?.length||0,http_status:error.http_status??null,logs:error.logs||[error.message],reason:error.code||null,upstream:old?.diagnostic?.upstream||{},persistence:old?.diagnostic?.persistence?{...old.diagnostic.persistence,inserted:0,updated:0,unchanged:0,event_rows_written:0}:null,failure_count:(old?.diagnostic?.failure_count||0)+1};
     }
     const delay=diagnostic.status==='success'?60000:Math.min(600000,60000*2**Math.min(4,diagnostic.failure_count));
     diagnostic.next_check_at_utc=new Date(Date.now()+delay).toISOString();

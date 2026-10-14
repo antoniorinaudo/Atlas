@@ -71,7 +71,7 @@ test('ETag permite HTTP 304 sin HTML; la copia y la fecha de descarga persisten 
 });
 test('Mantenimiento y catálogo parcial mantienen datos, fecha, validadores e historial de consultas',async()=>{
  const ctx=context(),service=new AtlasLive(ctx,{});await service.ready;await service.check(async()=>response(Array.from({length:30},(_,i)=>event(i))),async()=>{});const old=service.snapshot.catalog;
- await service.check(async()=>response([event()],'"partial"'),async()=>{});assert.deepEqual(service.snapshot.catalog,old);assert.equal(service.snapshot.diagnostic.reason,'partial_catalog');assert.equal(service.snapshot.diagnostic.http_status,200);assert.equal(service.snapshot.diagnostic.upstream.etag,'"source-one"');
+ await service.check(async()=>response([event()],'"partial"'),async()=>{});assert.deepEqual(service.snapshot.catalog,old);assert.equal(service.snapshot.diagnostic.reason,'partial_catalog');assert.equal(service.snapshot.diagnostic.http_status,200);assert.equal(service.snapshot.diagnostic.upstream.etag,'"source-one"');assert.equal(service.snapshot.diagnostic.persistence.event_rows_written,0);assert.equal(service.snapshot.diagnostic.persistence.inserted,0);
  await service.check(async()=>new Response('Estamos en mantenimiento hasta las 4:30pm.'),async()=>{});assert.deepEqual(service.snapshot.catalog,old);assert.match(service.snapshot.diagnostic.logs[0],/mantenimiento/);
  const diagnostic=await (await service.fetch(new Request('https://atlas.test/diagnostico.json'))).json();assert(diagnostic.recent_checks.length>=2);
 });
