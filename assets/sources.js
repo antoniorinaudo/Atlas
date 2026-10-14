@@ -12,7 +12,7 @@
  const stamp=iso=>{try{return iso?formatPanamaStamp(iso,true):'Sin hora de revisión publicada';}catch{return 'Sin hora de revisión publicada';}};
  function render(e){
   const panel=document.getElementById('mapPopup');let details=document.getElementById('sourceComparison');
-  if(!details){details=document.createElement('details');details.id='sourceComparison';details.className='source-comparison';panel.querySelector('.popup-actions').before(details);details.addEventListener('toggle',()=>requestAnimationFrame(positionEventPopup));}
+  if(!details){details=document.createElement('details');details.id='sourceComparison';details.className='source-comparison';panel.querySelector('.popup-actions').before(details);details.addEventListener('toggle',()=>requestAnimationFrame(()=>{positionEventPopup();if(details.open&&!matchMedia('(max-width:630px)').matches)panel.scrollIntoView({block:'nearest',behavior:'instant'});}));}
   const obs=e.observations||[];details.hidden=!obs.length;
   if(details.dataset.uid!==e.uid)details.open=false;details.dataset.uid=e.uid||'';
   details.replaceChildren();
