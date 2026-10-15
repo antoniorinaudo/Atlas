@@ -4,3 +4,4 @@ cloudflare/node_modules/
 .env
 actualizacion.log
 __pycache__/
+scripts/whatsapp-reader/node_modules/

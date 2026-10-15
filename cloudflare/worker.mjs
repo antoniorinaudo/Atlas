@@ -3,6 +3,7 @@ import {initCatalogStore,prepareMerge,viewStored,seedLegacy,prepareRecovery,reco
 import recoveryCapture from './recovery-20261014.json' with {type:'json'};
 import {initMulti,normalizeFeature,inRegion,externalArchive,comparisonRevisions} from './multi-source.mjs';
 import {checkMulti} from './multi-check.mjs';
+import {initWhatsApp,authorized,readIngest,INGEST_PATH} from './whatsapp-ingest.mjs';
 // Read-only public API. One Durable Object harvests and broadcasts changes.
 export const SOURCE = 'https://sismosgeociencias.up.ac.pa/';
 export const KEY = 'catalog-v1';
@@ -106,8 +107,13 @@ export async function pack(catalog,diagnostic) {
 export default {
   async fetch(request,env) {
     const path=new URL(request.url).pathname;
+    if(path===INGEST_PATH){
+      if(request.method!=='POST')return new Response(null,{status:405,headers:{Allow:'POST'}});
+      if(!await authorized(request,env.WHATSAPP_INGEST_TOKEN))return new Response('{"error":"No autorizado"}',{status:401,headers:{'Cache-Control':'no-store'}});
+      return env.ATLAS_LIVE.getByName('panama').fetch(request);
+    }
     if(['/push/public-key','/push/subscribe','/push/unsubscribe','/push/test'].includes(path))return env.ATLAS_LIVE.getByName('panama').fetch(request);
-    if(!['/sismos.json','/diagnostico.json','/historico.json','/revisiones.json','/live'].includes(path))return jsonResponse({error:'Ruta no encontrada'},404);
+    if(!['/sismos.json','/diagnostico.json','/historico.json','/revisiones.json','/canal.json','/live'].includes(path))return jsonResponse({error:'Ruta no encontrada'},404);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:publicHeaders()});
     if(!['GET','HEAD'].includes(request.method))return jsonResponse({error:'API de solo lectura'},405);
     return env.ATLAS_LIVE.getByName('panama').fetch(request);
@@ -130,6 +136,7 @@ export class AtlasLive {
       initPush(ctx.storage.sql);
       initCatalogStore(ctx.storage.sql);
       initMulti(ctx.storage.sql);
+      initWhatsApp(ctx.storage.sql);
       const row=ctx.storage.sql.exec('SELECT value FROM atlas_state WHERE id = 1').toArray()[0];
       if(row)this.snapshot=JSON.parse(row.value);
       else if(env.ATLAS_KV){
@@ -242,6 +249,22 @@ export class AtlasLive {
   async fetch(request) {
     await this.ready;
     const path=new URL(request.url).pathname;
+    if(path==='/canal.json'){
+      const url=new URL(request.url);url.searchParams.set('provider','IGC-WHATSAPP');
+      try{return jsonResponse({...externalArchive(this.ctx.storage.sql,url),description:'Publicaciones del canal IGC–UP. Sin coordenadas publicadas, solo se asocian al mapa mediante coincidencia inequívoca con otro reporte geolocalizado.'});}
+      catch(error){return jsonResponse({error:error.message},400);}
+    }
+    if(path===INGEST_PATH){
+      if(request.method!=='POST'||!await authorized(request,this.env.WHATSAPP_INGEST_TOKEN))return new Response(null,{status:401});
+      let payload;try{payload=await readIngest(request);}catch(error){return jsonResponse({error:error.message},400);}
+      this.streamQueue=(this.streamQueue||Promise.resolve()).catch(()=>{}).then(async()=>{
+        await this.inFlight;
+        this.inFlight=checkMulti.call(this,fetch,undefined,{whatsapp:payload,event:'whatsapp-ingest'}).finally(()=>{this.inFlight=null;});
+        return this.inFlight;
+      });
+      try{return new Response(JSON.stringify(await this.streamQueue),{headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});}
+      catch{return new Response('{"error":"No se confirmó el guardado; reintentar"}',{status:503,headers:{'Cache-Control':'no-store'}});}
+    }
     if(path.startsWith('/push/'))return pushAPI(request,this.ctx.storage.sql,this.env);
     if(path==='/historico.json'||path==='/revisiones.json'){
       try{const url=new URL(request.url),sql=this.ctx.storage.sql,uid=url.searchParams.get('uid');let data;if(path==='/historico.json')data=url.searchParams.has('provider')?externalArchive(sql,url):archivePage(sql,url);else{const linked=sql.exec('SELECT value FROM atlas_observations WHERE canonical_uid=? AND provider=?',uid,'IGC-UP').toArray()[0];data={...eventRevisions(sql,linked?JSON.parse(linked.value).provider_id:uid),uid,sources:comparisonRevisions(sql,uid)};}return new Response(request.method==='HEAD'?null:JSON.stringify(data),{headers:publicHeaders()});}

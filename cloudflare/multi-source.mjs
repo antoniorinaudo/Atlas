@@ -19,7 +19,7 @@ export function initMulti(sql){
 export function providerStates(sql){return Object.fromEntries(sql.exec('SELECT provider,value FROM atlas_provider_state').toArray().map(r=>[r.provider,JSON.parse(r.value)]));}
 export function saveProvider(sql,provider,state){sql.exec('INSERT INTO atlas_provider_state(provider,value) VALUES(?,?) ON CONFLICT(provider) DO UPDATE SET value=excluded.value',provider,JSON.stringify(state));}
 export function externalArchive(sql,url){
- const provider=url.searchParams.get('provider');if(!PROVIDERS[provider])throw Error('provider debe ser USGS o EMSC');
+ const provider=url.searchParams.get('provider');if(!PROVIDERS[provider]&&provider!=='IGC-WHATSAPP')throw Error('provider debe ser USGS, EMSC o IGC-WHATSAPP');
  const from=url.searchParams.get('from')||'0000-01-01',to=url.searchParams.get('to')||'9999-12-31';if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to)throw Error('Fechas from/to inválidas');
  const limit=Math.floor(Math.max(1,Math.min(500,Number(url.searchParams.get('limit'))||100))),offset=Math.floor(Math.max(0,Math.min(1000000,Number(url.searchParams.get('offset'))||0)));
  const rows=sql.exec('SELECT * FROM atlas_observations WHERE provider=? AND event_date>=? AND event_date<=? ORDER BY event_date DESC,observation_key LIMIT ? OFFSET ?',provider,from,to,limit,offset).toArray();
@@ -56,8 +56,12 @@ export async function collectProvider(provider,state={},fetcher=fetch,now=Date.n
  return {events,state:{...state,status:'success',checked_at_utc:started,verified_at_utc:new Date().toISOString(),fetched_at_utc:bytes?new Date().toISOString():state.fetched_at_utc||null,checkpoint:started,failure_count:0,received:events.length,bytes_read:bytes,pages,next_check_at_utc:new Date(now+60000).toISOString(),logs:[provider+': '+events.length+' registros '+(state.checkpoint?'nuevos o modificados':'en carga inicial')+' · '+bytes+' bytes · '+pages+' consultas']}};
 }
 function igcObservation(e,verified){const params=new URLSearchParams({e:e.status,f:e.date,h:e.displayTime||e.time,ln:e.lon.toFixed(5),lt:e.lat.toFixed(5),m:String(e.mag),p:e.depth+'km',r:'Localizado en '+e.region,z:'9'});return {...e,provider:'IGC-UP',provider_id:e.uid,agency:'IGC-UP',mag_type:'',sourceUrl:'https://sismosgeociencias.up.ac.pa/ultimosismo.html?'+params,source_updated_at_utc:null,verified_at_utc:verified||null};}
-function compatible(a,b){return Math.abs(epoch(a)-epoch(b))<=20000&&distance(a,b)<=25&&Math.abs(a.mag-b.mag)<=1.2;}
-function rank(e){return {'IGC-UP':0,USGS:1,EMSC:2}[e.provider];}
+const located=e=>typeof e.lat==='number'&&Number.isFinite(e.lat)&&typeof e.lon==='number'&&Number.isFinite(e.lon);
+function compatible(a,b){
+ if(!located(a)||!located(b))return (a.provider==='IGC-WHATSAPP'||b.provider==='IGC-WHATSAPP')&&Math.abs(epoch(a)-epoch(b))<=2000&&Math.abs(a.mag-b.mag)<=0.2+1e-8&&Math.abs(a.depth-b.depth)<=3;
+ return Math.abs(epoch(a)-epoch(b))<=20000&&distance(a,b)<=25&&Math.abs(a.mag-b.mag)<=1.2;
+}
+function rank(e){return located(e)?({'IGC-UP':0,'IGC-WHATSAPP':0.5,USGS:1,EMSC:2}[e.provider]??9):10;}
 export function prepareMulti(sql,igc,batches={},states={},now=Date.now()){
  const {cutoff,today}=calendar(now),old=sql.exec('SELECT * FROM atlas_observations WHERE event_date>=?',cutoff).toArray(),rows=new Map(old.map(r=>[r.observation_key,{...r,e:JSON.parse(r.value)}])),writes=[];
  for(const [provider,batch]of Object.entries(batches))for(const e of batch.events){
@@ -80,21 +84,22 @@ export function prepareMulti(sql,igc,batches={},states={},now=Date.now()){
  const links=[];
  // Associate only reciprocal, unique candidates. Never merge a crowded cluster
  // merely because its nearest point looks plausible; ambiguous observations stay separate.
- for(const provider of ['USGS','EMSC']){
+ for(const provider of ['USGS','EMSC','IGC-WHATSAPP']){
   const current=pending.filter(r=>r.provider===provider),candidates=new Map(current.map(r=>[r,Array.from(groups.values()).filter(g=>!g.observations.some(o=>o.provider===provider)&&g.observations.some(o=>compatible(o,r.e)))]));
   for(const r of current){const possible=candidates.get(r),g=possible.length===1&&current.filter(other=>candidates.get(other).includes(possible[0])).length===1?possible[0]:null;
+   if(!g&&!located(r.e))continue;
    const target=g||{uid:'external:'+r.observation_key,observations:[]};if(!g)groups.set(target.uid,target);target.observations.push(r.e);r.canonical_uid=target.uid;links.push(r);
   }
  }
  // Late IGC records attach only when the match is unambiguous in both directions.
  const alone=[...groups.values()].filter(g=>g.observations.length===1&&g.observations[0].provider==='IGC-UP'),external=[...groups.values()].filter(g=>!g.observations.some(o=>o.provider==='IGC-UP'));
  for(const g of alone){const candidates=external.filter(t=>t.observations.some(o=>compatible(g.observations[0],o)));if(candidates.length!==1)continue;const target=candidates[0];if(alone.filter(other=>target.observations.some(o=>compatible(other.observations[0],o))).length!==1)continue;target.observations.push(g.observations[0]);groups.delete(g.uid);links.push({observation_key:'IGC-UP:'+g.observations[0].uid,canonical_uid:target.uid,igc:true});}
- const events=[...groups.values()].filter(g=>g.observations.length).map(g=>{
+ const events=[...groups.values()].filter(g=>g.observations.some(located)).map(g=>{
   g.observations.sort((a,b)=>rank(a)-rank(b));const best=g.observations[0],observations=g.observations.map(o=>({...o,verified_at_utc:states[o.provider]?.verified_at_utc||o.verified_at_utc||null,source_health:states[o.provider]?.status||'unknown'}));
   return {...best,uid:g.uid,source_presence:best.source_presence||'observed',observations,association:observations.length>1?'approximate':'single-source'};
  }).sort((a,b)=>epoch(b)-epoch(a)||a.uid.localeCompare(b.uid)).map((e,i)=>({...e,id:i+1}));
  const existingTotal=one(sql,'SELECT COUNT(*) AS n FROM atlas_observations WHERE provider!=?','IGC-UP').n;
- return {events,stats:{observations:existingTotal+writes.filter(r=>!oldLinks.has(r.observation_key)).length,observation_rows_written:writes.length,compared_events:events.filter(e=>e.observations.length>1).length},apply(){
+ return {events,stats:{observations:existingTotal+writes.filter(r=>!oldLinks.has(r.observation_key)).length,observation_rows_written:writes.length,compared_events:events.filter(e=>e.observations.length>1).length,channel_unlocated:ext.filter(r=>r.provider==='IGC-WHATSAPP'&&!located(r.e)&&!r.canonical_uid).length,channel_reports:ext.filter(r=>r.provider==='IGC-WHATSAPP').length},apply(){
   for(const r of writes){sql.exec('INSERT INTO atlas_observations(observation_key,provider,event_date,canonical_uid,value,revision,observed_at_utc) VALUES(?,?,?,?,?,?,?) ON CONFLICT(observation_key) DO UPDATE SET event_date=excluded.event_date,value=excluded.value,revision=excluded.revision,observed_at_utc=excluded.observed_at_utc',r.observation_key,r.provider,r.event_date,r.canonical_uid,r.value,r.revision,r.observed_at_utc);sql.exec('INSERT INTO atlas_observation_revisions VALUES(?,?,?,?)',r.observation_key,r.revision,r.observed_at_utc,r.value);}
   for(const r of links){if(r.igc){const e=igc.find(e=>'IGC-UP:'+e.uid===r.observation_key);sql.exec('INSERT OR IGNORE INTO atlas_observations VALUES(?,?,?,?,?,?,?)',r.observation_key,'IGC-UP',e.date,r.canonical_uid,JSON.stringify(igcObservation(e)),1,new Date(now).toISOString());}else sql.exec('UPDATE atlas_observations SET canonical_uid=? WHERE observation_key=?',r.canonical_uid,r.observation_key);}
  }};
