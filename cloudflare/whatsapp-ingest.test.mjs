@@ -45,6 +45,14 @@ test('Sin coordenadas no se elige entre dos coincidencias ni se crea un punto ad
  const geo={...wa,provider:'EMSC',provider_id:'one',lat:7.5,lon:-80.5};
  const p=prepareMulti(sql,[],{EMSC:{events:[geo,{...geo,provider_id:'two',lat:7.6}]},'IGC-WHATSAPP':{events:[wa]}},{},now);assert.equal(p.events.length,2);assert.equal(p.stats.channel_unlocated,1);assert.equal(p.events.filter(e=>e.observations.some(o=>o.provider==='IGC-WHATSAPP')).length,0);
 });
+test('Un reporte nuevo sin coordenadas se publica por WebSocket sin crear un punto',async()=>{
+ const ctx=context(),secret='x'.repeat(64),obj=new AtlasLive(ctx,{MULTI_SOURCE:'true',WHATSAPP_INGEST_TOKEN:secret});await obj.ready;
+ const local=new Date(Date.now()-18000000-60000).toISOString();
+ const m=message({published_at_utc:new Date().toISOString(),text:message().text.replace('15/10/2026',local.slice(0,10)).replace('9:12:35 AM',local.slice(11,19)).replace(/Latitud:[^\n]+\n|Longitud:[^\n]+\n/g,'')});
+ const req=()=>new Request('https://example.com'+INGEST_PATH,{method:'POST',headers:{Authorization:'Bearer '+secret},body:JSON.stringify({channel:WHATSAPP_CHANNEL,fetched_at_utc:new Date().toISOString(),messages:[m]})});
+ const r=await obj.fetch(req());assert.equal(r.status,200);assert.equal(obj.snapshot.catalog.events.length,0);assert.equal(obj.snapshot.catalog.channel_reports.length,1);assert(ctx.messages.some(f=>f.type==='catalog'&&f.payload.channel_reports.length===1));
+ const revision=obj.snapshot.revision;ctx.messages.length=0;await obj.fetch(req());assert.equal(obj.snapshot.revision,revision);assert(ctx.messages.some(f=>f.type==='heartbeat'));
+});
 test('Ingesta real del objeto persiste, difunde por WebSocket y no consulta otras fuentes ni duplica al repetir',async()=>{
  const ctx=context(),secret='x'.repeat(64),obj=new AtlasLive(ctx,{MULTI_SOURCE:'true',WHATSAPP_INGEST_TOKEN:secret});await obj.ready;
  const local=new Date(Date.now()-18000000-60000).toISOString();const m=message({published_at_utc:new Date().toISOString(),text:message().text.replace('15/10/2026',local.slice(0,10)).replace('9:12:35 AM',local.slice(11,19))});

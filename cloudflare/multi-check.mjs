@@ -31,11 +31,11 @@ export async function checkMulti(fetcher=fetch,wait,options={}){
  }
  const multi=prepareMulti(sql,igcPlan?.events||viewStored(sql,now),batches,states,now);
  const healthy=Object.entries(states).filter(([p,s])=>s.status==='success'&&now-Date.parse(s.verified_at_utc)<(p===WHATSAPP_PROVIDER?5400000:180000)),latest=(field,fallback)=>Object.values(states).map(s=>s[field]).filter(Boolean).sort().at(-1)||fallback||null;
- const catalog={source:'IGC-UP · USGS · EMSC',source_url:'https://sismosgeociencias.up.ac.pa/',fetched_at_utc:latest('fetched_at_utc',old?.catalog?.fetched_at_utc),verified_at_utc:healthy.length?latest('verified_at_utc'):old?.catalog?.verified_at_utc,snapshot_only:!healthy.length&&!old?.catalog?.verified_at_utc,events:multi.events,sources:states,attribution:'IGC–UP; USGS; EMSC SeismicPortal (CC BY 4.0). La asociación entre catálogos es aproximada; no implica mediciones independientes.'};
+ const catalog={source:'IGC-UP · USGS · EMSC',source_url:'https://sismosgeociencias.up.ac.pa/',fetched_at_utc:latest('fetched_at_utc',old?.catalog?.fetched_at_utc),verified_at_utc:healthy.length?latest('verified_at_utc'):old?.catalog?.verified_at_utc,snapshot_only:!healthy.length&&!old?.catalog?.verified_at_utc,events:multi.events,channel_reports:multi.unlocated_reports,sources:states,attribution:'IGC–UP; USGS; EMSC SeismicPortal (CC BY 4.0). La asociación entre catálogos es aproximada; no implica mediciones independientes.'};
  const status=healthy.length?'success':'failure',persistence={...(igcPlan?.stats||old?.diagnostic?.persistence||{}),...multi.stats,active_events:multi.events.length};
  if(states.EMSC)states.EMSC={...states.EMSC,stream:this.emscSocket?.readyState===1?'connected':'reconnecting'};
  const diagnostic={collector:'cloudflare',service:'durable-object',event:options.event||'alarm',status,partial_failure:Object.values(states).some(s=>s.status==='failure'),checked_at_utc:checked,fetched_at_utc:catalog.fetched_at_utc,verified_at_utc:catalog.verified_at_utc,event_count:catalog.events.length,sources:states,persistence,logs:Object.entries(states).flatMap(([p,s])=>[p+' · '+s.status+' · verificado: '+(s.verified_at_utc||'nunca'),...(s.logs||[])]),next_check_at_utc:new Date(now+60000).toISOString()};
- const revision=await eventRevision(catalog.events),snapshot={...await pack(catalog,diagnostic),revision};
+ const revision=await eventRevision([...catalog.events,...catalog.channel_reports]),snapshot={...await pack(catalog,diagnostic),revision};
  // A provider's first harvest is a baseline. Backfills, late IGC associations,
  // and revisions never become duplicate pushes for existing canonical events.
  const previousUIDs=new Set((old?.catalog?.events||[]).map(e=>e.uid));

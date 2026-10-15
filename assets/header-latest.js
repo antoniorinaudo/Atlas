@@ -1,8 +1,9 @@
 (()=>{
  'use strict';
  const header=document.querySelector('.shell>header'),button=document.getElementById('headerLatest');
+ const latest=()=>{const mapped=latestCatalogEvent(),channel=window.atlasChannel?.latest();return channel&&(!mapped||channel.date+'T'+channel.time>mapped.date+'T'+mapped.time)?channel:mapped;};
  function sync(){
-  const event=latestCatalogEvent();button.disabled=!event;
+  const event=latest();button.disabled=!event;
   document.getElementById('headerLatestMag').textContent=event?'M '+event.mag.toFixed(1):'M —';
   document.getElementById('headerLatestRegion').textContent=event?event.region:'Sin registros disponibles';
   document.getElementById('headerLatestTime').textContent=event?formatLocalTime(event.time,false):'';
@@ -14,7 +15,7 @@
   const label=event?`Último sismo: M ${event.mag.toFixed(1)} · ${event.region} · ${dateShort(event.date)} · ${formatLocalTime(event.time)} Panamá · ${event.status}${unverified?' · Datos sin verificar':''}. Ver ficha.`:'Sin registros disponibles';
   button.setAttribute('aria-label',label);button.title=label;
  }
- button.onclick=()=>focusCatalogEvent(latestCatalogEvent());
+ button.onclick=()=>{const event=latest();if(event?.channelReport)window.atlasChannel.open(event);else focusCatalogEvent(event);};
  window.atlasHeader={sync};
  const resize=new ResizeObserver(()=>{
   document.documentElement.style.setProperty('--atlas-header-height',Math.ceil(header.getBoundingClientRect().height)+'px');
